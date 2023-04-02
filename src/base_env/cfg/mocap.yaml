@@ -1,0 +1,6 @@
+/mocap_data_convert:
+  ros__parameters:
+    pos_topic : "/vrpn_client_node/uav/pose"
+    vel_topic  : "/vrpn_client_node/uav/twist"
+    # pos_topic : "/mavros/local_position/pose"
+    # vel_topic  : "/mavros/local_position/velocity_local"

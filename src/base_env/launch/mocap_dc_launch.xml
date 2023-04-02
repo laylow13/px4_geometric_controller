@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="base_env" exec="mocap_data_convert" name="mocap_data_convert" output="screen">
+    <param from="/home/vlodemort/uav/se3_ros2_ws/src/base_env/cfg/mocap.yaml"/>
+    </node>
+</launch>

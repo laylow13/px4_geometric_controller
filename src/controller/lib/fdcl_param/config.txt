@@ -1,0 +1,13 @@
+UAV:
+	m: 2.5
+	J: 3, 0, 0,  0, 2, 0,  0, 0, 1
+Control:
+	kR: 1.8
+	kW: 2.0
+IMU:
+	dev: "/dev/tty"
+I2C:
+	dev: "/dev/i2c"
+	addr: 50
+GPS:
+	available: 1

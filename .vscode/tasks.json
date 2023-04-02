@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "colcon",
+			"task": "build",
+			"problemMatcher": [
+				"$catkin-gcc",
+				"$catkin-cmake"
+			],
+			"group": "build",
+			"label": "colcon: build"
+		}
+	]
+}

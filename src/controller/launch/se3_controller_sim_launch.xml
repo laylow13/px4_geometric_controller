@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="controller" exec="se3_geometric_controller" name="controller_node" output="screen">
+    <param from="/home/vlodemort/uav/se3_ros2_ws/src/controller/cfg/sim.yaml"/>
+    </node>
+</launch>

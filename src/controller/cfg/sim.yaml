@@ -1,0 +1,22 @@
+/controller_node:
+  ros__parameters:
+    Ka0: 0.2
+    Ka1: 0.2
+    Ka2: 1.2
+    Kp0: 4.1
+    Kp1: 4.1
+    Kp2: 4.5
+    Kv0: 9.0
+    Kv1: 9.0
+    Kv2: 5.5
+    Kvi0: 0.0
+    Kvi1: 0.0
+    Kvi2: 0.1
+    cmd_topic: /fmu/in/vehicle_attitude_setpoint
+    ctrl_rate: 50.0
+    gra: 9.81
+    hov_percent: 0.7
+    i_limit_max: 0.5
+    i_speed_max: 1.5
+    mass: 1.535
+

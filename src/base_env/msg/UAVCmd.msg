@@ -1,0 +1,9 @@
+std_msgs/Header header
+geometry_msgs/Vector3 xd
+geometry_msgs/Vector3 xd_dot
+geometry_msgs/Vector3 xd_2dot
+geometry_msgs/Vector3 xd_3dot
+geometry_msgs/Vector3 xd_4dot
+geometry_msgs/Vector3 b1d
+geometry_msgs/Vector3 b1d_dot
+geometry_msgs/Vector3 b1d_2dot
