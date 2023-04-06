@@ -5,9 +5,11 @@ using std::endl;
 
 double Controller::get_yaw_from_quaternion(const Eigen::Quaterniond &q)
 {
-	Eigen::Vector3d yaw = q.matrix().eulerAngles(0, 1, 2);
-	// std::printf("euler is %lf %lf %lf", yaw(0), yaw(1), yaw(2));
-	return yaw(2);
+	//TODO: 
+	Eigen::Vector3d yaw = q.matrix().eulerAngles(2, 1, 0);
+	return yaw(0);
+	// Eigen::Vector3d yaw = q.matrix().eulerAngles(0, 1, 2);
+	// return yaw(2);
 }
 
 Eigen::Matrix3d Controller::rotz(double t)
@@ -178,10 +180,10 @@ void Controller::run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitu
 	double full_thrust = param.mass * param.gra / param.hov_percent;
 	// TO DO:消息类型发生改变，原代码需要更改
 	u.thrust = u_true / full_thrust;
-	if (u.thrust>0.9)
+	if (u.thrust > 0.9)
 	{
-		RCLCPP_WARN(rclcpp::get_logger("controller"),"Thrust too high:%f",u.thrust);
-		u.thrust=0.9;
+		RCLCPP_WARN(rclcpp::get_logger("controller"), "Thrust too high:%f", u.thrust);
+		u.thrust = 0.9;
 	}
 	// ROS_INFO("thrust_raw = %lf",u_true);
 	/*
@@ -197,11 +199,10 @@ void Controller::run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitu
 		//u.thrust = u.thrust >= 0.9 ? 0.9 : u.thrust;
 
 	*/
-	const Eigen::Quaterniond desired_attitude = computeDesiredAttitude(F_des / param.mass, yaw_des, motion_input.angular.q);
+	const Eigen::Quaterniond desired_attitude = computeDesiredAttitude(F_des / param.mass, yaw_des, motion_fb.angular.q);
 
+	u.q[0] = desired_attitude.w();
 	u.q[1] = desired_attitude.x();
 	u.q[2] = desired_attitude.y();
 	u.q[3] = desired_attitude.z();
-	u.q[0] = desired_attitude.w();
-	
 }

@@ -26,7 +26,7 @@ include_directories(
   $<INSTALL_INTERFACE:include>)
 
 add_executable(se3_geometric_controller 
-  src/node.cpp lib/se3_controller/controller.cpp)
+  src/controller_node.cpp lib/se3_controller/controller.cpp)
 
 # add_executable(fm_controller src/fm_control.cpp)
 

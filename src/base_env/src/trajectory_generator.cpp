@@ -62,7 +62,7 @@ void pos(UAVMotion &_traj, float _t)
 {
     _traj.linear.pos.x = 0.0;
     _traj.linear.pos.y = 0.0;
-    _traj.linear.pos.z = 1.0;
+    _traj.linear.pos.z = 2.0;
     _traj.linear.vel.x = 0.0;
     _traj.linear.vel.y = 0.0;
     _traj.linear.vel.z = 0.0;

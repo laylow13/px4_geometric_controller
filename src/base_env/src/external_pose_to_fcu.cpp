@@ -7,6 +7,11 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "px4_msgs/msg/vehicle_odometry.hpp"
 
+/*TO DO: 1.Frame transform
+         2.Time sync
+         3.Test
+*/
+
 class ExternalPose : public rclcpp::Node
 {
 public:
@@ -23,7 +28,7 @@ public:
 
         this->create_subscription<nav_msgs::msg::Odometry>(
             topic_sub, 10, std::bind(&ExternalPose::external_pose_sub_cb, this, _1));
-        fcu_pose_pub = this->create_publisher<px4_msgs::msg::VehicleOdometry>("vehicle_mocap_odometry", 10);
+        fcu_pose_pub = this->create_publisher<px4_msgs::msg::VehicleOdometry>("/fmu/vehicle_mocap_odometry/in", 10);
         this->create_wall_timer(std::chrono::milliseconds(int(1000/rate_hz)),
                                 std::bind(&ExternalPose::timer_callback, this));
     }
@@ -52,21 +57,22 @@ private:
             pos_drone = Eigen::Vector3d(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
             q_drone = Eigen::Quaterniond(msg->pose.pose.orientation.w, msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z);
 
-            ext_pose.position[0] = pos_drone[0];
-            ext_pose.position[1] = pos_drone[1];
-            ext_pose.position[2] = pos_drone[2];
+            ext_pose.x = pos_drone[0];
+            ext_pose.y = pos_drone[1];
+            ext_pose.z = pos_drone[2];
 
-            ext_pose.q[0] = q_drone.x();
-            ext_pose.q[1] = q_drone.y();
-            ext_pose.q[2] = q_drone.z();
-            ext_pose.q[3] = q_drone.w();
+            ext_pose.q[0] = q_drone.w();
+            ext_pose.q[1] = q_drone.x();
+            ext_pose.q[2] = q_drone.y();
+            ext_pose.q[3] = q_drone.z();
             //TO DO: timestamp test!!
             ext_pose.timestamp=rclcpp::Clock().now().nanoseconds()/1000;
-            /*
-            uint8 POSE_FRAME_UNKNOWN = 0
-            uint8 POSE_FRAME_NED     = 1
-            uint8 POSE_FRAME_FRD     = 2*/
-            ext_pose.pose_frame=1;  
+            /*# Position and linear velocity frame of reference constants
+            uint8 LOCAL_FRAME_NED=0         # NED earth-fixed frame
+            uint8 LOCAL_FRAME_FRD=1         # FRD earth-fixed frame, arbitrary heading reference
+            uint8 LOCAL_FRAME_OTHER=2       # Not aligned with the std frames of reference
+            uint8 BODY_FRAME_FRD=3          # FRD body-fixed frame*/
+            ext_pose.local_frame=0;  
             // ext_pose.quality=
         }
         else

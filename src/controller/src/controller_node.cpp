@@ -5,7 +5,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "se3_controller/controller.hpp"
 #include "base_env/msg/uav_motion.hpp"
+#include "px4_msgs/msg/timesync.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
+#include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
 
 using namespace std::chrono_literals;
 
@@ -19,17 +21,22 @@ public:
         parameter_init();
         controller.param = param;
         cmd_pub = this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(cmd_topic, 10);
-        offboard_pub= this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
-        state_sub=this->create_subscription<base_env::msg::UAVMotion>(
+        offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/offboard_control_mode/in", 10);
+        state_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion", 10, std::bind(&Controller_node::motion_sub_cb, this, _1));
-        cmd_sub=this->create_subscription<base_env::msg::UAVMotion>(
+        cmd_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion_expect", 10, std::bind(&Controller_node::motion_expect_sub_cb, this, _1));
-        timer_=this->create_wall_timer(
-           std::chrono::milliseconds(int(1000 / param.ctrl_rate)), std::bind(&Controller_node::timer_callback, this));
+        timesync_sub = this->create_subscription<px4_msgs::msg::Timesync>("fmu/timesync/out", 10,
+                                                                          [this](const px4_msgs::msg::Timesync::UniquePtr msg)
+                                                                          {
+                                                                              timestamp.store(msg->timestamp);
+                                                                          });
+        timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(int(1000 / param.ctrl_rate)), std::bind(&Controller_node::timer_callback, this));
     }
 
 private:
-    uint64_t timestamp;
+    std::atomic<uint64_t> timestamp; 
     Controller controller;
     Parameter_t param;
     std::string cmd_topic;
@@ -39,6 +46,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr state_sub;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr cmd_sub;
+    rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub;
     rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr cmd_pub;
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_pub;
     void publish_offboard_control_mode()
@@ -49,56 +57,61 @@ private:
         msg.acceleration = false;
         msg.attitude = true;
         msg.body_rate = false;
-        msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
+        msg.timestamp = timestamp.load();
         offboard_pub->publish(msg);
     }
     void publish_controller_cmd()
     {
         px4_msgs::msg::VehicleAttitudeSetpoint UAV_setpoint;
-        controller.run(UAV_motion_expect,UAV_motion, att_sp);
+        controller.run(UAV_motion_expect, UAV_motion, att_sp);
         attitude_sp_t att_sp_NED;
-        ENU2NED(att_sp,att_sp_NED);
-        UAV_setpoint.timestamp=this->get_clock()->now().nanoseconds() / 1000;//??
-        UAV_setpoint.thrust_body[2]=att_sp_NED.thrust;
-        std::copy(std::begin(att_sp_NED.q),std::end(att_sp_NED.q),std::begin(UAV_setpoint.q_d));
+        ENU2NED(att_sp, att_sp_NED);
+        UAV_setpoint.timestamp = timestamp.load();
+        UAV_setpoint.thrust_body[2] = att_sp_NED.thrust;
+        std::copy(std::begin(att_sp_NED.q), std::end(att_sp_NED.q), std::begin(UAV_setpoint.q_d));
         cmd_pub->publish(UAV_setpoint);
     }
-    void ENU2NED(attitude_sp_t &_src,attitude_sp_t &_target)
+    /*
+    @brief ENU2NED() map: PX4_local:NED -> Controller_local:ENU -> Controller_body:FLU/ENU ->  PX4_body:FRD/NED
+        _src: Controller_local:ENU -> Controller_body:FLU/ENU
+        _target: PX4_local:NED ->  PX4_body:FRD/NED 
+    */
+    void ENU2NED(attitude_sp_t &_src, attitude_sp_t &_target)
     {
         using namespace Eigen;
 
         Matrix3d R = AngleAxisd(M_PI, Vector3d::UnitX()).toRotationMatrix(); // from NED to ENU
-        Quaterniond q{_src.q[0],_src.q[1],_src.q[2],_src.q[3]};
+        Quaterniond q{_src.q[0], _src.q[1], _src.q[2], _src.q[3]};
 
-        q = Quaterniond(R).normalized() * q;
+        q = Quaterniond(R).normalized() * q * Quaterniond(R.transpose()).normalized();
 
         _target.thrust = -_src.thrust;
+        _target.q[0] = q.w();
         _target.q[1] = q.x();
         _target.q[2] = q.y();
         _target.q[3] = q.z();
-        _target.q[0] = q.w();
     }
     void parameter_init()
     {
-        this->declare_parameter<double>("Kp0",0);
-        this->declare_parameter<double>("Kp1",0);
-        this->declare_parameter<double>("Kp2",0);
-        this->declare_parameter<double>("Kv0",0);
-        this->declare_parameter<double>("Kv1",0);
-        this->declare_parameter<double>("Kv2",0);
-        this->declare_parameter<double>("Kvi0",0);
-        this->declare_parameter<double>("Kvi1",0);
-        this->declare_parameter<double>("Kvi2",0);
-        this->declare_parameter<double>("Ka0",0);
-        this->declare_parameter<double>("Ka1",0);
-        this->declare_parameter<double>("Ka2",0);
-        this->declare_parameter<double>("mass",0);
-        this->declare_parameter<double>("gra",0);
-        this->declare_parameter<double>("hov_percent",0);
-        this->declare_parameter<double>("i_limit_max",0);
-        this->declare_parameter<double>("i_speed_max",0);
-        this->declare_parameter<double>("ctrl_rate",50);
-        this->declare_parameter<std::string>("cmd_topic","/fmu/in/vehicle_attitude_setpoint");
+        this->declare_parameter<double>("Kp0", 0);
+        this->declare_parameter<double>("Kp1", 0);
+        this->declare_parameter<double>("Kp2", 0);
+        this->declare_parameter<double>("Kv0", 0);
+        this->declare_parameter<double>("Kv1", 0);
+        this->declare_parameter<double>("Kv2", 0);
+        this->declare_parameter<double>("Kvi0", 0);
+        this->declare_parameter<double>("Kvi1", 0);
+        this->declare_parameter<double>("Kvi2", 0);
+        this->declare_parameter<double>("Ka0", 0);
+        this->declare_parameter<double>("Ka1", 0);
+        this->declare_parameter<double>("Ka2", 0);
+        this->declare_parameter<double>("mass", 0);
+        this->declare_parameter<double>("gra", 0);
+        this->declare_parameter<double>("hov_percent", 0);
+        this->declare_parameter<double>("i_limit_max", 0);
+        this->declare_parameter<double>("i_speed_max", 0);
+        this->declare_parameter<double>("ctrl_rate", 50);
+        this->declare_parameter<std::string>("cmd_topic", "/fmu/vehicle_attitude_setpoint/in");
 
         param.Kp(0, 0) = this->get_parameter("Kp0").get_value<double>();
         param.Kp(1, 1) = this->get_parameter("Kp1").get_value<double>();
@@ -150,7 +163,7 @@ private:
         UAV_motion.angular.acc(0) = msg.angular.acc.x;
         UAV_motion.angular.acc(1) = msg.angular.acc.y;
         UAV_motion.angular.acc(2) = msg.angular.acc.z;
-        timestamp=msg.timestamp;
+        timestamp = msg.timestamp;
     }
     void motion_expect_sub_cb(const base_env::msg::UAVMotion &msg)
     {
@@ -187,13 +200,12 @@ private:
     {
         publish_controller_cmd();
         publish_offboard_control_mode();
-        RCLCPP_DEBUG(this->get_logger(),"Publishing Command!");
+        RCLCPP_DEBUG(this->get_logger(), "Publishing Command!");
     }
 };
 
 int main(int argc, char *argv[])
 {
-
     rclcpp::init(argc, argv);
     rclcpp::spin(std::make_shared<Controller_node>());
     rclcpp::shutdown();

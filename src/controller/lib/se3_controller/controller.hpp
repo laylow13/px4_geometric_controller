@@ -5,7 +5,6 @@
 #include "rclcpp/rclcpp.hpp"
 #include "Structs.hpp"
 #include "base_env/msg/uav_motion.hpp"
-#include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
 
 class Parameter_t
 {

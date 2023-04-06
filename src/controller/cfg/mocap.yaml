@@ -18,4 +18,4 @@
     Ka0: 0.2
     Ka1: 0.2
     Ka2: 1.2
-    cmd_topic : "/fmu/in/vehicle_attitude_setpoint"
+    cmd_topic : "/fmu/vehicle_attitude_setpoint/in"
