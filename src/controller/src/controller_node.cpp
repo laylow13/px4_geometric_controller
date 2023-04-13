@@ -5,9 +5,12 @@
 #include "rclcpp/rclcpp.hpp"
 #include "se3_controller/controller.hpp"
 #include "base_env/msg/uav_motion.hpp"
+#include "base_env/msg/uav_thrust.hpp"
+#include "base_env/msg/uav_disturbance.hpp"
 #include "px4_msgs/msg/timesync.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
+#include "px4_msgs/msg/hover_thrust_estimate.hpp"
 
 using namespace std::chrono_literals;
 
@@ -22,10 +25,15 @@ public:
         controller.param = param;
         cmd_pub = this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(cmd_topic, 10);
         offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/offboard_control_mode/in", 10);
+        thrust_pub = this->create_publisher<base_env::msg::UAVThrust>("SCIT_drone/UAV_thrust", 10);
         state_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion", 10, std::bind(&Controller_node::motion_sub_cb, this, _1));
         cmd_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion_expect", 10, std::bind(&Controller_node::motion_expect_sub_cb, this, _1));
+        hte_sub = this->create_subscription<px4_msgs::msg::HoverThrustEstimate>(
+            "/fmu/hover_thrust_estimate/out", 10, std::bind(&Controller_node::hte_sub_cb, this, _1));
+        disturbance_sub = this->create_subscription<base_env::msg::UAVDisturbance>(
+            "SCIT_drone/UAV_disturbance", 10, std::bind(&Controller_node::disturbance_sub_cb, this, _1));
         timesync_sub = this->create_subscription<px4_msgs::msg::Timesync>("fmu/timesync/out", 10,
                                                                           [this](const px4_msgs::msg::Timesync::UniquePtr msg)
                                                                           {
@@ -36,7 +44,7 @@ public:
     }
 
 private:
-    std::atomic<uint64_t> timestamp; 
+    std::atomic<uint64_t> timestamp;
     Controller controller;
     Parameter_t param;
     std::string cmd_topic;
@@ -46,9 +54,13 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr state_sub;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr cmd_sub;
+    rclcpp::Subscription<base_env::msg::UAVDisturbance>::SharedPtr disturbance_sub;
     rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub;
+    rclcpp::Subscription<px4_msgs::msg::HoverThrustEstimate>::SharedPtr hte_sub;
+    rclcpp::Publisher<base_env::msg::UAVThrust>::SharedPtr thrust_pub;
     rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr cmd_pub;
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_pub;
+
     void publish_offboard_control_mode()
     {
         px4_msgs::msg::OffboardControlMode msg{};
@@ -71,10 +83,21 @@ private:
         std::copy(std::begin(att_sp_NED.q), std::end(att_sp_NED.q), std::begin(UAV_setpoint.q_d));
         cmd_pub->publish(UAV_setpoint);
     }
+    void publish_thrust()
+    {
+        base_env::msg::UAVThrust msg;
+        msg.timestamp = timestamp.load();
+        msg.frame_type = base_env::msg::UAVThrust::ENU;
+        Eigen::Vector3d thrust = controller.getDesiredThrust();
+        msg.thrust.x = thrust(0);
+        msg.thrust.y = thrust(1);
+        msg.thrust.z = thrust(2);
+        thrust_pub->publish(msg);
+    }
     /*
     @brief ENU2NED() map: PX4_local:NED -> Controller_local:ENU -> Controller_body:FLU/ENU ->  PX4_body:FRD/NED
         _src: Controller_local:ENU -> Controller_body:FLU/ENU
-        _target: PX4_local:NED ->  PX4_body:FRD/NED 
+        _target: PX4_local:NED ->  PX4_body:FRD/NED
     */
     void ENU2NED(attitude_sp_t &_src, attitude_sp_t &_target)
     {
@@ -163,7 +186,7 @@ private:
         UAV_motion.angular.acc(0) = msg.angular.acc.x;
         UAV_motion.angular.acc(1) = msg.angular.acc.y;
         UAV_motion.angular.acc(2) = msg.angular.acc.z;
-        timestamp = msg.timestamp;
+        // timestamp = msg.timestamp;
     }
     void motion_expect_sub_cb(const base_env::msg::UAVMotion &msg)
     {
@@ -196,10 +219,28 @@ private:
         UAV_motion_expect.angular.acc(1) = msg.angular.acc.y;
         UAV_motion_expect.angular.acc(2) = msg.angular.acc.z;
     }
+    void hte_sub_cb(const px4_msgs::msg::HoverThrustEstimate::SharedPtr msg)
+    {
+        if (msg->valid)
+        {
+            param.hov_percent = msg->hover_thrust;
+            controller.param.hov_percent = param.hov_percent;
+            rclcpp::Parameter hte("hov_percent", param.hov_percent);
+            this->set_parameter(hte);
+        }
+        RCLCPP_DEBUG(this->get_logger(), "hover_thrust updated!");
+    }
+    void disturbance_sub_cb(const base_env::msg::UAVDisturbance::SharedPtr msg)
+    {
+        Eigen::Vector3d disturbance{msg->df.x, msg->df.y, msg->df.z};
+        controller.setDisturbance(disturbance);
+        RCLCPP_INFO(this->get_logger(), "[df]: %f,%f,%f",msg->df.x, msg->df.y, msg->df.z);
+    }
     void timer_callback()
     {
         publish_controller_cmd();
         publish_offboard_control_mode();
+        publish_thrust();
         RCLCPP_DEBUG(this->get_logger(), "Publishing Command!");
     }
 };

@@ -47,10 +47,20 @@ private:
 	Eigen::Vector3d err_vel_i;
 	double yaw_des = 0;
 	double get_yaw_from_quaternion(const Eigen::Quaterniond &q);
+	Eigen::Vector3d _thrust;
+	Eigen::Vector3d _df;
 
 public:
 	Parameter_t param;
 	void run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitude_sp_t &u);
+	Eigen::Vector3d getDesiredThrust()
+	{
+		return _thrust;
+	}
+	void setDisturbance(Eigen::Vector3d &disturbance_F)
+	{
+		_df=disturbance_F;
+	}
 };
 
 #endif

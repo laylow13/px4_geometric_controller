@@ -28,6 +28,7 @@ include_directories(
 add_executable(se3_geometric_controller 
   src/controller_node.cpp lib/se3_controller/controller.cpp)
 
+
 # add_executable(fm_controller src/fm_control.cpp)
 
 # target_link_libraries(fm_controller  fdcl_se3_controller)
@@ -54,11 +55,23 @@ ament_target_dependencies(
 #   "base_env"
 # )
 
-install(TARGETS se3_geometric_controller
-  DESTINATION lib/${PROJECT_NAME})
 
-# install(TARGETS fm_controller
-#   DESTINATION lib/${PROJECT_NAME})
+
+add_executable(disturbance_observer 
+  src/dob_node.cpp)
+
+target_include_directories(disturbance_observer PRIVATE lib/lpf)
+
+target_compile_features(disturbance_observer PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
+ament_target_dependencies(
+  disturbance_observer
+  "rclcpp"
+  "base_env"
+)
+
+install(TARGETS se3_geometric_controller disturbance_observer
+  DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}/

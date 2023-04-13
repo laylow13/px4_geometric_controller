@@ -6,11 +6,11 @@
 #include "base_env/msg/uav_cmd.hpp"
 
 
-class fdcl_controller : public rclcpp::Node
+class fdcl_controller_node : public rclcpp::Node
 {
 public:
 
-    fdcl_controller() : Node("fdcl_se3_controller")
+    fdcl_controller_node() : Node("fdcl_se3_controller")
     {
         state = new fdcl::state_t();
         command = new fdcl::command_t();
@@ -19,17 +19,17 @@ public:
         controller.reinit(state,command,config_file);
 
         state_sub = this->create_subscription<base_env::msg::UAVState>(
-            "uav_state", 10, std::bind(&fdcl_controller::state_sub_cb, this, _1));
+            "uav_state", 10, std::bind(&fdcl_controller_node::state_sub_cb, this, _1));
         cmd_sub = this->create_subscription<base_env::msg::UAVCmd>(
-            "uav_command", 10, std::bind(&fdcl_controller::cmd_sub_cb, this, _1));
+            "uav_command", 10, std::bind(&fdcl_controller_node::cmd_sub_cb, this, _1));
         fm_pub = this->create_publisher</* msg_type */>(" ", 10);
 
         this->create_wall_timer( std::chrono::seconds(1),
-            std::bind(&fdcl_controller::timer_callback, this));
+            std::bind(&fdcl_controller_node::timer_callback, this));
 
     }
 
-    ~fdcl_controller()
+    ~fdcl_controller_node()
     {
         delete state;
         delete command;
@@ -71,7 +71,7 @@ private:
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<fdcl_controller>());
+    rclcpp::spin(std::make_shared<fdcl_controller_node>());
     rclcpp::shutdown();
     return 0;
 }

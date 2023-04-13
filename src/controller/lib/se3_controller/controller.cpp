@@ -5,7 +5,7 @@ using std::endl;
 
 double Controller::get_yaw_from_quaternion(const Eigen::Quaterniond &q)
 {
-	//TODO: 
+	// TODO:
 	Eigen::Vector3d yaw = q.matrix().eulerAngles(2, 1, 0);
 	return yaw(0);
 	// Eigen::Vector3d yaw = q.matrix().eulerAngles(0, 1, 2);
@@ -171,18 +171,19 @@ void Controller::run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitu
 	Eigen::Vector3d err_vel_i_to_f = rot_yaw * param.Kvi * rot_yaw_trans * err_vel_i;
 	Eigen::Vector3d err_vel_to_f = rot_yaw * param.Kv * rot_yaw_trans * err_vel + err_pos_to_vel;
 
-	Eigen::Vector3d F_des = rot_yaw * param.Ka * rot_yaw_trans * err_acc * param.mass + err_vel_to_f * param.mass + err_vel_i_to_f * param.mass + Eigen::Vector3d(0, 0, param.mass * param.gra);
+	Eigen::Vector3d F_des = rot_yaw * param.Ka * rot_yaw_trans * err_acc * param.mass + err_vel_to_f * param.mass + err_vel_i_to_f * param.mass + Eigen::Vector3d(0, 0, param.mass * param.gra)-_df;
 
 	Eigen::Matrix3d wRb_odom = motion_fb.angular.q.toRotationMatrix();
 	Eigen::Vector3d z_b_curr = wRb_odom.col(2);
 
 	double u_true = F_des.dot(z_b_curr);
+	Eigen::Vector3d e3{0, 0, 1};
+	_thrust = u_true * wRb_odom * e3;
 	double full_thrust = param.mass * param.gra / param.hov_percent;
-	// TO DO:消息类型发生改变，原代码需要更改
 	u.thrust = u_true / full_thrust;
 	if (u.thrust > 0.9)
 	{
-		RCLCPP_WARN(rclcpp::get_logger("controller"), "Thrust too high:%f", u.thrust);
+		// RCLCPP_WARN(rclcpp::get_logger("controller"), "Thrust too high:%f", u.thrust);
 		u.thrust = 0.9;
 	}
 	// ROS_INFO("thrust_raw = %lf",u_true);

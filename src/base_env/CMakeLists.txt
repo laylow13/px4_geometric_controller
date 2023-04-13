@@ -25,6 +25,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/UAVMotion.msg"
   "msg/UAVState.msg"
   "msg/UAVCmd.msg"
+  "msg/UAVThrust.msg"
+  "msg/UAVDisturbance.msg"
   DEPENDENCIES geometry_msgs std_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
 ament_export_dependencies(rosidl_default_runtime)

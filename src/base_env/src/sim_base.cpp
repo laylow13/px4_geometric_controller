@@ -11,6 +11,8 @@
 using std::placeholders::_1;
 base_env::msg::UAVMotion motion;
 rclcpp::Publisher<base_env::msg::UAVMotion>::SharedPtr state_pub;
+Eigen::Vector3d last_vel;
+uint64_t last_timestamp;
 
 void timer_callback();
 void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
@@ -26,6 +28,7 @@ int main(int argc, char *argv[])
     auto motion_sub = sim_base->create_subscription<px4_msgs::msg::VehicleOdometry>(
         "/fmu/vehicle_odometry/out", qos, &motion_cb);
     state_pub = sim_base->create_publisher<base_env::msg::UAVMotion>("/SCIT_drone/UAV_motion", 10);
+    // TODO: change loop rate
     auto timer = sim_base->create_wall_timer(
         std::chrono::milliseconds(20),
         &timer_callback);
@@ -40,20 +43,26 @@ void timer_callback()
     NED2ENU(motion, target);
     state_pub->publish(target);
     RCLCPP_DEBUG(rclcpp::get_logger("sim_base"), "[NED X Y Z]:%f,%f,%f\n[ENU X Y Z]:%f,%f,%f",
-                motion.linear.pos.x, motion.linear.pos.y, motion.linear.pos.z,
-                target.linear.pos.x, target.linear.pos.y, target.linear.pos.z);
+                 motion.linear.pos.x, motion.linear.pos.y, motion.linear.pos.z,
+                 target.linear.pos.x, target.linear.pos.y, target.linear.pos.z);
     RCLCPP_DEBUG(rclcpp::get_logger("sim_base"), "Timer event");
 }
 
 void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
 {
     motion.timestamp = msg->timestamp;
+    double dt = (msg->timestamp - last_timestamp) * 1e-6;
+    last_timestamp = msg->timestamp;
     motion.linear.pos.x = msg->x;
     motion.linear.pos.y = msg->y;
     motion.linear.pos.z = msg->z;
     motion.linear.vel.x = msg->vx;
     motion.linear.vel.y = msg->vy;
     motion.linear.vel.z = msg->vz;
+    motion.linear.acc.x = (msg->vx - last_vel(0)) / dt;
+    motion.linear.acc.y = (msg->vy - last_vel(1)) / dt;
+    motion.linear.acc.z = (msg->vz - last_vel(2)) / dt;
+    last_vel << msg->vx, msg->vy, msg->vz;
     motion.angular.q.w = msg->q[0];
     motion.angular.q.x = msg->q[1];
     motion.angular.q.y = msg->q[2];
@@ -73,10 +82,12 @@ void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target)
     Matrix3d R = AngleAxisd(M_PI, Vector3d::UnitX()).toRotationMatrix(); // from ENU to NED
     Vector3d pos{_src.linear.pos.x, _src.linear.pos.y, _src.linear.pos.z};
     Vector3d vel{_src.linear.vel.x, _src.linear.vel.y, _src.linear.vel.z};
+    Vector3d acc{_src.linear.acc.x, _src.linear.acc.y, _src.linear.acc.z};
     Quaterniond q{_src.angular.q.w, _src.angular.q.x, _src.angular.q.y, _src.angular.q.z};
 
     pos = R * pos;
     vel = R * vel;
+    acc = R * acc;
     q = Quaterniond(R).normalized() * q * Quaterniond(R.transpose()).normalized();
 
     _target.linear.pos.x = pos(0);
@@ -85,6 +96,9 @@ void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target)
     _target.linear.vel.x = vel(0);
     _target.linear.vel.y = vel(1);
     _target.linear.vel.z = vel(2);
+    _target.linear.acc.x = acc(0);
+    _target.linear.acc.y = acc(1);
+    _target.linear.acc.z = acc(2);
     _target.angular.q.x = q.x();
     _target.angular.q.y = q.y();
     _target.angular.q.z = q.z();

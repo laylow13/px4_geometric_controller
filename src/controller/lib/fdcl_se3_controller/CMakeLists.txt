@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
 
-project(fdcl_se3)
-
 find_package(Eigen3 REQUIRED)
 
 add_library(fdcl_se3_controller STATIC fdcl_control.cpp 

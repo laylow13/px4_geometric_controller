@@ -75,7 +75,8 @@
     "variant": "cpp",
     "bit": "cpp",
     "core": "cpp",
-    "*.ipp": "cpp"
+    "*.ipp": "cpp",
+    "regex": "cpp"
 },
 "C_Cpp.codeAnalysis.clangTidy.checks.disabled": [
     "clang-diagnostic-error"
