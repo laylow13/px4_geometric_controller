@@ -14,8 +14,8 @@
     Kv2: 5.5 #6
     Kvi0: 0.0
     Kvi1: 0.0
-    Kvi2: 0.4
-    Ka0: 0.2
-    Ka1: 0.2
-    Ka2: 1.2
+    Kvi2: 0.0
+    Ka0: 0.0
+    Ka1: 0.0
+    Ka2: 0.0
     cmd_topic : "/fmu/vehicle_attitude_setpoint/in"

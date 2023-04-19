@@ -1,3 +1,7 @@
+/*
+get state information from px4 topic, and publish to controller after frame transformation
+*/
+
 #include <chrono>
 #include <memory>
 #include <string>

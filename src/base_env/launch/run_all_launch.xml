@@ -1,0 +1,6 @@
+<launch>
+    <include file="$(find-pkg-share base_env)/launch/ext_pose_to_fcu_launch.xml"/>
+    <include file="$(find-pkg-share base_env)/launch/mocap_data_convert_launch.xml"/>
+    <node pkg="base_env" exec="trajectory_generator"  output="screen"/>
+    <include file="$(find-pkg-share controller)/launch/se3_controller_launch.xml"/>
+</launch>

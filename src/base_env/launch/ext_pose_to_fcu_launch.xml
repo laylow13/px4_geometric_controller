@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="base_env" exec="external_pose_to_fcu" name="external_pose_to_fcu" output="screen">
+    <param from = "/home/vlodemort/uav/se3_ros2_ws/src/base_env/cfg/mocap2fcu.yaml"/>
+    </node>
+</launch>

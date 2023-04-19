@@ -1,0 +1,11 @@
+/external_pose_to_fcu:
+  ros__parameters:
+    pos_topic: "/vrpn_client_node/uav/pose"
+    vel_topic: "/vrpn_client_node/uav/twist"
+    header_frame_id: "world"
+    rate_hz: 30.0
+    offset_x: 0.0
+    offset_y: 0.0
+    offset_z: 0.0
+    offset_yaw: 0.0
+    
