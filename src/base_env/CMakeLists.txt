@@ -8,6 +8,7 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+
 # find_package(rospy REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -38,7 +39,7 @@ target_include_directories(mocap_data_convert PUBLIC
   $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_compile_features(mocap_data_convert PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(mocap_data_convert PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
 ament_target_dependencies(
   mocap_data_convert
@@ -51,13 +52,14 @@ add_executable(sim_base src/sim_base.cpp)
 
 target_include_directories(sim_base PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+
   # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/frame_transforms/include>
   $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(sim_base  frame_transforms)
+target_link_libraries(sim_base frame_transforms)
 
-target_compile_features(sim_base PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(sim_base PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
 ament_target_dependencies(
   sim_base
@@ -69,11 +71,12 @@ add_executable(trajectory_generator src/trajectory_generator.cpp)
 
 target_include_directories(trajectory_generator PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+
   # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/frame_transforms/include>
   $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
-target_compile_features(trajectory_generator PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(trajectory_generator PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
 ament_target_dependencies(
   trajectory_generator
@@ -83,11 +86,11 @@ ament_target_dependencies(
 add_executable(external_pose_to_fcu src/external_pose_to_fcu.cpp)
 
 target_include_directories(external_pose_to_fcu PUBLIC
-$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-$<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
-$<INSTALL_INTERFACE:include>)
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
+  $<INSTALL_INTERFACE:include>)
 
-target_compile_features(external_pose_to_fcu PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+target_compile_features(external_pose_to_fcu PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
 ament_target_dependencies(
   external_pose_to_fcu
@@ -108,17 +111,22 @@ rosidl_target_interfaces(trajectory_generator
 install(TARGETS mocap_data_convert external_pose_to_fcu sim_base trajectory_generator
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch 
+install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME})
+
+install(DIRECTORY cfg
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+
   # the following line skips the linter which checks for copyrights
   # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
+  # set(ament_cmake_copyright_FOUND TRUE)
   # the following line skips cpplint (only works in a git repo)
   # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
+  # set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
 

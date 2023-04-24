@@ -88,4 +88,10 @@
     "/opt/ros/galactic/lib/python3.8/site-packages",
     "/opt/ros/noetic/lib/python3/dist-packages"
 ],
+"python.analysis.extraPaths": [
+    "/home/vlodemort/uav/se3_ros2_ws/install/base_env/lib/python3.8/site-packages",
+    "/home/vlodemort/uav/se3_ros2_ws/install/px4_msgs/lib/python3.8/site-packages",
+    "/opt/ros/galactic/lib/python3.8/site-packages",
+    "/opt/ros/noetic/lib/python3/dist-packages"
+],
 }

@@ -3,3 +3,5 @@ install/
 log/
 scripts/__pycache__
 rosbags/
+fc_config/
+.cache/
