@@ -11,15 +11,14 @@ class Parameter_t
 public:
 	Eigen::Matrix3d Kp;
 	Eigen::Matrix3d Kv;
-	Eigen::Matrix3d Kvi;
-	Eigen::Matrix3d Ka;
+	Eigen::Matrix3d Ki;
 
 	double mass;
 	double gra;
 	double hov_percent;
 
 	double i_limit_max;
-	double i_speed_max;
+	double i_c;
 
 	double ctrl_rate;
 };
@@ -49,7 +48,7 @@ private:
 	double get_yaw_from_quaternion(const Eigen::Quaterniond &q);
 	Eigen::Vector3d _thrust;
 	Eigen::Vector3d _df;
-
+	Eigen::Vector3d _last_integration;
 public:
 	Parameter_t param;
 	void run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitude_sp_t &u);
@@ -59,7 +58,7 @@ public:
 	}
 	void setDisturbance(Eigen::Vector3d &disturbance_F)
 	{
-		_df=disturbance_F;
+		_df = disturbance_F;
 	}
 };
 

@@ -11,16 +11,17 @@
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
 #include "px4_msgs/msg/hover_thrust_estimate.hpp"
+#include "px4_msgs/msg/vehicle_status.hpp"
 
 class Controller_node : public rclcpp::Node
 {
 public:
-    Controller_node() : Node("controller_node")
+    Controller_node() : Node("controller_node"), is_posctl(false)
     {
         using std::placeholders::_1;
         using namespace std::chrono_literals;
         parameter_init();
-        controller.param = param;
+        parameter_update();
         cmd_pub = this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(cmd_topic, 10);
         offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/offboard_control_mode/in", 10);
         thrust_pub = this->create_publisher<base_env::msg::UAVThrust>("SCIT_drone/UAV_thrust", 10);
@@ -35,13 +36,21 @@ public:
         timesync_sub = this->create_subscription<px4_msgs::msg::Timesync>("fmu/timesync/out", 10,
                                                                           [this](const px4_msgs::msg::Timesync::UniquePtr msg)
                                                                           {
-                                                                            //   timestamp.store(msg->timestamp);
+                                                                              //   timestamp.store(msg->timestamp);
                                                                           });
+        mode_sub = this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/vehicle_status/out", 10,
+                                                                           [this](const px4_msgs::msg::VehicleStatus::UniquePtr msg)
+                                                                           {
+                                                                               is_posctl = msg->nav_state == 2 ? true : false;
+                                                                               is_offboard = msg->nav_state == 14 ? true : false;
+                                                                           });
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(int(1000 / param.ctrl_rate)), std::bind(&Controller_node::timer_callback, this));
     }
 
 private:
+    bool is_posctl;
+    bool is_offboard;
     std::atomic<uint64_t> timestamp;
     Controller controller;
     Parameter_t param;
@@ -50,6 +59,7 @@ private:
     UAV_motion_t UAV_motion_expect;
     attitude_sp_t att_sp;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Subscription<px4_msgs::msg::VehicleStatus>::SharedPtr mode_sub;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr state_sub;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr cmd_sub;
     rclcpp::Subscription<base_env::msg::UAVDisturbance>::SharedPtr disturbance_sub;
@@ -60,6 +70,7 @@ private:
     rclcpp::Publisher<px4_msgs::msg::OffboardControlMode>::SharedPtr offboard_pub;
 
     void parameter_init();
+    void parameter_update();
     void timer_callback();
     void publish_offboard_control_mode();
     void publish_controller_cmd();
@@ -79,46 +90,54 @@ void Controller_node::parameter_init()
     this->declare_parameter<double>("Kv0", 0);
     this->declare_parameter<double>("Kv1", 0);
     this->declare_parameter<double>("Kv2", 0);
-    this->declare_parameter<double>("Kvi0", 0);
-    this->declare_parameter<double>("Kvi1", 0);
-    this->declare_parameter<double>("Kvi2", 0);
-    this->declare_parameter<double>("Ka0", 0);
-    this->declare_parameter<double>("Ka1", 0);
-    this->declare_parameter<double>("Ka2", 0);
+    this->declare_parameter<double>("Ki0", 0);
+    this->declare_parameter<double>("Ki1", 0);
+    this->declare_parameter<double>("Ki2", 0);
     this->declare_parameter<double>("mass", 0);
     this->declare_parameter<double>("gra", 0);
     this->declare_parameter<double>("hov_percent", 0);
     this->declare_parameter<double>("i_limit_max", 0);
-    this->declare_parameter<double>("i_speed_max", 0);
+    this->declare_parameter<double>("i_c", 0);
     this->declare_parameter<double>("ctrl_rate", 50);
     this->declare_parameter<std::string>("cmd_topic", "/fmu/vehicle_attitude_setpoint/in");
 
+    param.ctrl_rate = this->get_parameter("ctrl_rate").get_value<double>();
+    cmd_topic = this->get_parameter("cmd_topic").get_value<std::string>();
+}
+void Controller_node::parameter_update()
+{
     param.Kp(0, 0) = this->get_parameter("Kp0").get_value<double>();
     param.Kp(1, 1) = this->get_parameter("Kp1").get_value<double>();
     param.Kp(2, 2) = this->get_parameter("Kp2").get_value<double>();
     param.Kv(0, 0) = this->get_parameter("Kv0").get_value<double>();
     param.Kv(1, 1) = this->get_parameter("Kv1").get_value<double>();
     param.Kv(2, 2) = this->get_parameter("Kv2").get_value<double>();
-    param.Kvi(0, 0) = this->get_parameter("Kvi0").get_value<double>();
-    param.Kvi(1, 1) = this->get_parameter("Kvi1").get_value<double>();
-    param.Kvi(2, 2) = this->get_parameter("Kvi2").get_value<double>();
-    param.Ka(0, 0) = this->get_parameter("Ka0").get_value<double>();
-    param.Ka(1, 1) = this->get_parameter("Ka1").get_value<double>();
-    param.Ka(2, 2) = this->get_parameter("Ka2").get_value<double>();
+    param.Ki(0, 0) = this->get_parameter("Ki0").get_value<double>();
+    param.Ki(1, 1) = this->get_parameter("Ki1").get_value<double>();
+    param.Ki(2, 2) = this->get_parameter("Ki2").get_value<double>();
+
     param.mass = this->get_parameter("mass").get_value<double>();
     param.gra = this->get_parameter("gra").get_value<double>();
     param.hov_percent = this->get_parameter("hov_percent").get_value<double>();
     param.i_limit_max = this->get_parameter("i_limit_max").get_value<double>();
-    param.i_speed_max = this->get_parameter("i_speed_max").get_value<double>();
-    param.ctrl_rate = this->get_parameter("ctrl_rate").get_value<double>();
-    cmd_topic = this->get_parameter("cmd_topic").get_value<std::string>();
+    param.i_c = this->get_parameter("i_c").get_value<double>();
+    controller.param = param;
 }
 void Controller_node::timer_callback()
 {
+    parameter_update();
     timestamp.store(this->get_clock()->now().nanoseconds() / 1000);
-    publish_controller_cmd();
-    publish_offboard_control_mode();
-    publish_thrust();
+    if (!is_posctl)
+    {
+        publish_controller_cmd();
+        publish_offboard_control_mode();
+        if (is_offboard)
+        {
+            publish_thrust();
+            auto pos_err = UAV_motion.linear.pos - UAV_motion_expect.linear.pos;
+            RCLCPP_INFO(this->get_logger(), "[pos_err] x:%.2f,y:%.2f,z:%.2f", pos_err(0), pos_err(1), pos_err(2));
+        }
+    }
     RCLCPP_DEBUG(this->get_logger(), "Publishing Command!");
 }
 void Controller_node::publish_offboard_control_mode()

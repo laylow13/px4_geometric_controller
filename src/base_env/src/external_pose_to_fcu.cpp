@@ -5,7 +5,7 @@
 #include <Eigen/Eigen>
 #include <math.h>
 #include "rclcpp/rclcpp.hpp"
-#include "px4_msgs/msg/vehicle_odometry.hpp"
+#include "px4_msgs/msg/vehicle_visual_odometry.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 
@@ -53,7 +53,7 @@ public:
             pos_topic, 10, std::bind(&ExternalPose::ext_pos_sub_cb, this, _1));
         ext_vel_sub = this->create_subscription<geometry_msgs::msg::TwistStamped>(
             vel_topic, 10, std::bind(&ExternalPose::ext_vel_sub_cb, this, _1));
-        fcu_odom_pub = this->create_publisher<px4_msgs::msg::VehicleOdometry>("/fmu/vehicle_mocap_odometry/in", 10);
+        fcu_odom_pub = this->create_publisher<px4_msgs::msg::VehicleVisualOdometry>("/fmu/vehicle_visual_odometry/in", 10);
         timer = this->create_wall_timer(std::chrono::milliseconds(int(1000 / rate_hz)),
                                         std::bind(&ExternalPose::timer_callback, this));
     }
@@ -67,7 +67,7 @@ private:
     rclcpp::TimerBase::SharedPtr timer;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr ext_pos_sub;
     rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr ext_vel_sub;
-    rclcpp::Publisher<px4_msgs::msg::VehicleOdometry>::SharedPtr fcu_odom_pub;
+    rclcpp::Publisher<px4_msgs::msg::VehicleVisualOdometry>::SharedPtr fcu_odom_pub;
 
     void timer_callback();
     void ext_pos_sub_cb(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
@@ -108,8 +108,8 @@ void ExternalPose::timer_callback()
     {
         mocap_data_t NED_mocap_data = mocap_data.ENU2NED();
 
-        px4_msgs::msg::VehicleOdometry ext_odom;
-        ext_odom.timestamp = this->get_clock()->now().nanoseconds() / 1000;
+        px4_msgs::msg::VehicleVisualOdometry ext_odom;
+        ext_odom.timestamp_sample = this->get_clock()->now().nanoseconds() / 1000;
         ext_odom.local_frame = 0;
         ext_odom.x = NED_mocap_data.x[0];
         ext_odom.y = NED_mocap_data.x[1];

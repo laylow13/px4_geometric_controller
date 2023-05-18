@@ -7,7 +7,7 @@ def generate_launch_description():
     param = os.path.join(
         get_package_share_directory('controller'),
         'cfg',
-        'mocap.yaml'
+        'sim.yaml'
         )
 
     return LaunchDescription([

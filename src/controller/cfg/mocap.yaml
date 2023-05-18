@@ -2,8 +2,8 @@
   ros__parameters:
     mass        : 2.18
     gra         : 9.81
-    hov_percent : 0.42
-    i_speed_max : 1.5
+    hov_percent : 0.3
+    i_c : 1.5
     i_limit_max : 0.5
     ctrl_rate   : 50.0
     Kp0: 4.1 #1.5
@@ -12,10 +12,7 @@
     Kv0: 9.0 #6
     Kv1: 9.0 #6
     Kv2: 5.5 #6
-    Kvi0: 0.0
-    Kvi1: 0.0
-    Kvi2: 0.0
-    Ka0: 0.0
-    Ka1: 0.0
-    Ka2: 0.0
+    Ki0: 0.0
+    Ki1: 0.0
+    Ki2: 0.0
     cmd_topic : "/fmu/vehicle_attitude_setpoint/in"

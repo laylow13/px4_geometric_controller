@@ -49,7 +49,7 @@ void round_traj(UAVMotion &_traj, float _r, float _w, float _t)
 {
     _traj.linear.pos.x = _r * cos(_w * _t);
     _traj.linear.pos.y = _r * sin(_w * _t);
-    _traj.linear.pos.z = 1.0;
+    _traj.linear.pos.z = 2.0;
     _traj.linear.vel.x = -_w * _r * sin(_w * _t);
     _traj.linear.vel.y = _w * _r * cos(_w * _t);
     _traj.linear.vel.z = 0.0;

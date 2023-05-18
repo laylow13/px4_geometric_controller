@@ -5,11 +5,8 @@ using std::endl;
 
 double Controller::get_yaw_from_quaternion(const Eigen::Quaterniond &q)
 {
-	// TODO:
 	Eigen::Vector3d yaw = q.matrix().eulerAngles(2, 1, 0);
 	return yaw(0);
-	// Eigen::Vector3d yaw = q.matrix().eulerAngles(0, 1, 2);
-	// return yaw(2);
 }
 
 Eigen::Matrix3d Controller::rotz(double t)
@@ -103,7 +100,7 @@ Eigen::Vector3d Controller::computeRobustBodyXAxis(const Eigen::Vector3d &x_B_pr
 	return x_B;
 }
 
-Eigen::Vector3d integration_limit(Eigen::Vector3d input, double limit)
+Eigen::Vector3d integration_limit(Eigen::Vector3d &input, double limit)
 {
 	for (int i = 0; i < 3; i++)
 	{
@@ -116,24 +113,20 @@ Eigen::Vector3d integration_limit(Eigen::Vector3d input, double limit)
 			input(i) = -limit;
 		}
 	}
-	return Eigen::Vector3d(input(0), input(1), input(2));
+	return input;
 }
 
 void Controller::run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitude_sp_t &u)
 {
 
-	Eigen::Vector3d err_pos = motion_input.linear.pos - motion_fb.linear.pos;
-	Eigen::Vector3d err_vel = motion_input.linear.vel - motion_fb.linear.vel;
-	Eigen::Vector3d err_acc = motion_input.linear.acc; //- motion_fb.angular.q * motion_fb.linear.acc;
-
-	err_vel_i += integration_limit(err_pos, param.i_speed_max / param.ctrl_rate);
+	Eigen::Vector3d err_pos = motion_fb.linear.pos - motion_input.linear.pos; // ex=x-xd
+	Eigen::Vector3d err_vel = motion_fb.linear.vel - motion_input.linear.vel; // ev=v-vd
+	Eigen::Vector3d acc_des = motion_input.linear.acc;
+	auto current_integration = param.i_c * err_pos + err_vel;
+	err_vel_i += (current_integration + _last_integration) / 2 / param.ctrl_rate;
 	err_vel_i = integration_limit(err_vel_i, param.i_limit_max);
+	_last_integration = current_integration;
 
-	// std::printf("ERR_X ERR_Y ERR_Z is %lf %lf %lf ", err_pos(0), err_pos(1), err_pos(2));
-
-	// reserved for observer to anti_disturbance
-	// Eigen::Vector3d drag_accelerations = Eigen::Vector3d::Zero();
-	// std::printf("expect vel is %lf %lf %lf ", motion_input.linear.vel(0), motion_input.linear.vel(1), motion_input.linear.vel(2));
 	double yaw_curr = get_yaw_from_quaternion(motion_fb.angular.q);
 
 	// double yaw_des = get_yaw_from_quaternion(motion_input.angular.q);
@@ -152,54 +145,23 @@ void Controller::run(UAV_motion_t &motion_input, UAV_motion_t &motion_fb, attitu
 	}
 
 	yaw_des = 0;
-	// std::printf("desired yaw is %lf", yaw_des);
-	Eigen::Matrix3d rot_yaw = rotz(yaw_curr);
-	Eigen::Matrix3d rot_yaw_trans = rot_yaw.transpose();
 
-	/*const std::vector<double> integration_enable_limits = {0.1, 0.1, 0.1};
-	for (size_t k = 0; k < 3; ++k)
-	{
-		if (std::fabs(err_vel(k)) < 0.2)
-		{
-			int_e_v(k) += err_vel(k) * 1.0 / 50.0;
-		}
-	}
-*/
-	const std::vector<double> integration_output_limits = {0.4, 0.4, 0.4};
-
-	Eigen::Vector3d err_pos_to_vel = rot_yaw * param.Kp * rot_yaw_trans * err_pos;
-	Eigen::Vector3d err_vel_i_to_f = rot_yaw * param.Kvi * rot_yaw_trans * err_vel_i;
-	Eigen::Vector3d err_vel_to_f = rot_yaw * param.Kv * rot_yaw_trans * err_vel + err_pos_to_vel;
-
-	Eigen::Vector3d F_des = rot_yaw * param.Ka * rot_yaw_trans * err_acc * param.mass + err_vel_to_f * param.mass + err_vel_i_to_f * param.mass + Eigen::Vector3d(0, 0, param.mass * param.gra)-_df;
-
+	// const std::vector<double> integration_output_limits = {0.4, 0.4, 0.4};
 	Eigen::Matrix3d wRb_odom = motion_fb.angular.q.toRotationMatrix();
+
+	Eigen::Vector3d err_pos_to_f = wRb_odom * param.Kp * wRb_odom.transpose() * err_pos;
+	Eigen::Vector3d err_vel_i_to_f = wRb_odom * param.Ki * wRb_odom.transpose() * err_vel_i;
+	Eigen::Vector3d err_vel_to_f = wRb_odom * param.Kv * wRb_odom.transpose() * err_vel;
+	// fd=-kx*ex-kv*ev-ki*ei+m*g*e3+m*a_d-df
+	Eigen::Vector3d F_des = -err_pos_to_f - err_vel_to_f - err_vel_i_to_f + Eigen::Vector3d(0, 0, param.mass * param.gra) + param.mass * acc_des  - _df;
+
 	Eigen::Vector3d z_b_curr = wRb_odom.col(2);
 
 	double u_true = F_des.dot(z_b_curr);
-	Eigen::Vector3d e3{0, 0, 1};
-	_thrust = u_true * wRb_odom * e3;
 	double full_thrust = param.mass * param.gra / param.hov_percent;
-	u.thrust = u_true / full_thrust;
-	if (u.thrust > 0.9)
-	{
-		// RCLCPP_WARN(rclcpp::get_logger("controller"), "Thrust too high:%f", u.thrust);
-		u.thrust = 0.9;
-	}
-	// ROS_INFO("thrust_raw = %lf",u_true);
-	/*
-		if (u.thrust >= 0.9)
-			ROS_WARN("FULL THRUST");
-			u.thrust=0.9;
-		if (u.thrust<=0)
-		{
-			u.thrust = 0;
-		}
-		//ROS_INFO("thrust = %lf",u_true);
-		//ROS_INFO("F_des = %lf",uuu);
-		//u.thrust = u.thrust >= 0.9 ? 0.9 : u.thrust;
+	u.thrust = u_true / full_thrust > 0.9 ? 0.9 : u_true / full_thrust;
+	_thrust = u.thrust * full_thrust * z_b_curr;
 
-	*/
 	const Eigen::Quaterniond desired_attitude = computeDesiredAttitude(F_des / param.mass, yaw_des, motion_fb.angular.q);
 
 	u.q[0] = desired_attitude.w();
