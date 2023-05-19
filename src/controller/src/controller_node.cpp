@@ -197,7 +197,7 @@ void Controller_node::motion_sub_cb(const base_env::msg::UAVMotion &msg)
 {
     UAV_motion.linear.pos << msg.linear.pos.x, msg.linear.pos.y, msg.linear.pos.z;
     UAV_motion.linear.vel << msg.linear.vel.x, msg.linear.vel.y, msg.linear.vel.z;
-    UAV_motion.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z - param.gra;
+    UAV_motion.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z;
     UAV_motion.linear.jerk << msg.linear.jerk.x, msg.linear.jerk.y, msg.linear.jerk.z;
     UAV_motion.angular.q = Eigen::Quaterniond(msg.angular.q.w, msg.angular.q.x, msg.angular.q.y, msg.angular.q.z);
     UAV_motion.angular.vel << msg.angular.vel.x, msg.angular.vel.y, msg.angular.vel.z;
@@ -208,7 +208,7 @@ void Controller_node::motion_expect_sub_cb(const base_env::msg::UAVMotion &msg)
 {
     UAV_motion_expect.linear.pos << msg.linear.pos.x, msg.linear.pos.y, msg.linear.pos.z;
     UAV_motion_expect.linear.vel << msg.linear.vel.x, msg.linear.vel.y, msg.linear.vel.z;
-    UAV_motion_expect.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z - param.gra;
+    UAV_motion_expect.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z;
     UAV_motion_expect.linear.jerk << msg.linear.jerk.x, msg.linear.jerk.y, msg.linear.jerk.z;
     UAV_motion_expect.angular.q = Eigen::Quaterniond(msg.angular.q.w, msg.angular.q.x, msg.angular.q.y, msg.angular.q.z);
     UAV_motion_expect.angular.vel << msg.angular.vel.x, msg.angular.vel.y, msg.angular.vel.z;
