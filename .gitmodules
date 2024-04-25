@@ -6,3 +6,7 @@
 	path = src/px4_msgs
 	url = https://github.com/PX4/px4_msgs.git
 	branch = release/1.13
+[submodule "src/px4_ros_com_1.14"]
+	path = src/px4_ros_com_1.14
+	url = https://github.com/PX4/px4_ros_com.git
+	branch = release/v1.14
