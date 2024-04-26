@@ -99,20 +99,20 @@ ament_target_dependencies(
   "px4_msgs"
 )
 
-add_executable(mocap_feedback_test src/mocap_feedback_TEST.cpp)
+#add_executable(mocap_feedback_test src/mocap_feedback_TEST.cpp)
 
-target_include_directories(mocap_feedback_test PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>)
+#target_include_directories(mocap_feedback_test PUBLIC
+#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#  $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
+#  $<INSTALL_INTERFACE:include>)
+#
+#target_compile_features(mocap_feedback_test PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
-target_compile_features(mocap_feedback_test PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
-
-ament_target_dependencies(
-  mocap_feedback_test
-  "rclcpp"
-  "px4_msgs"
-)
+#ament_target_dependencies(
+#  mocap_feedback_test
+#  "rclcpp"
+#  "px4_msgs"
+#)
 
 rosidl_target_interfaces(mocap_data_convert
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
@@ -123,7 +123,7 @@ rosidl_target_interfaces(sim_base
 rosidl_target_interfaces(trajectory_generator
   ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-install(TARGETS mocap_data_convert external_pose_to_fcu sim_base trajectory_generator mocap_feedback_test
+install(TARGETS mocap_data_convert external_pose_to_fcu sim_base trajectory_generator
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

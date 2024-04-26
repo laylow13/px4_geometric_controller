@@ -9,11 +9,11 @@
     Ki0: 0.0
     Ki1: 0.0
     Ki2: 0.0
-    cmd_topic: /fmu/vehicle_attitude_setpoint/in
+    cmd_topic: /fmu/in/vehicle_attitude_setpoint
     ctrl_rate: 80.0
     gra: 9.81
     hov_percent: 0.7
     i_limit_max: 1.0
     i_c: 1.0
-    mass: 1.535
+    mass: 2.06
 

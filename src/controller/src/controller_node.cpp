@@ -7,7 +7,7 @@
 #include "base_env/msg/uav_motion.hpp"
 #include "base_env/msg/uav_thrust.hpp"
 #include "base_env/msg/uav_disturbance.hpp"
-#include "px4_msgs/msg/timesync.hpp"
+#include "px4_msgs/msg/timesync_status.hpp"
 #include "px4_msgs/msg/offboard_control_mode.hpp"
 #include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
 #include "px4_msgs/msg/hover_thrust_estimate.hpp"
@@ -23,26 +23,26 @@ public:
         parameter_init();
         parameter_update();
         cmd_pub = this->create_publisher<px4_msgs::msg::VehicleAttitudeSetpoint>(cmd_topic, 10);
-        offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/offboard_control_mode/in", 10);
+        offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
         thrust_pub = this->create_publisher<base_env::msg::UAVThrust>("SCIT_drone/UAV_thrust", 10);
         state_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion", 10, std::bind(&Controller_node::motion_sub_cb, this, _1));
         cmd_sub = this->create_subscription<base_env::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion_expect", 10, std::bind(&Controller_node::motion_expect_sub_cb, this, _1));
         hte_sub = this->create_subscription<px4_msgs::msg::HoverThrustEstimate>(
-            "/fmu/hover_thrust_estimate/out", 10, std::bind(&Controller_node::hte_sub_cb, this, _1));
+            "/fmu/in/hover_thrust_estimate", 10, std::bind(&Controller_node::hte_sub_cb, this, _1));
         disturbance_sub = this->create_subscription<base_env::msg::UAVDisturbance>(
             "SCIT_drone/UAV_disturbance", 10, std::bind(&Controller_node::disturbance_sub_cb, this, _1));
-        timesync_sub = this->create_subscription<px4_msgs::msg::Timesync>("fmu/timesync/out", 10,
-                                                                          [this](const px4_msgs::msg::Timesync::UniquePtr msg)
+        timesync_sub = this->create_subscription<px4_msgs::msg::TimesyncStatus>("/fmu/out/timesync_status", 10,
+                                                                          [this](const px4_msgs::msg::TimesyncStatus::UniquePtr msg)
                                                                           {
                                                                               //   timestamp.store(msg->timestamp);
                                                                           });
-        mode_sub = this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/vehicle_status/out", 10,
+        mode_sub = this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/out/vehicle_status", 10,
                                                                            [this](const px4_msgs::msg::VehicleStatus::UniquePtr msg)
                                                                            {
-                                                                               is_posctl = msg->nav_state == 2 ? true : false;
-                                                                               is_offboard = msg->nav_state == 14 ? true : false;
+                                                                               is_posctl = msg->nav_state == 2;
+                                                                               is_offboard = msg->nav_state == 14;
                                                                            });
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(int(1000 / param.ctrl_rate)), std::bind(&Controller_node::timer_callback, this));
@@ -63,7 +63,7 @@ private:
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr state_sub;
     rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr cmd_sub;
     rclcpp::Subscription<base_env::msg::UAVDisturbance>::SharedPtr disturbance_sub;
-    rclcpp::Subscription<px4_msgs::msg::Timesync>::SharedPtr timesync_sub;
+    rclcpp::Subscription<px4_msgs::msg::TimesyncStatus>::SharedPtr timesync_sub;
     rclcpp::Subscription<px4_msgs::msg::HoverThrustEstimate>::SharedPtr hte_sub;
     rclcpp::Publisher<base_env::msg::UAVThrust>::SharedPtr thrust_pub;
     rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr cmd_pub;
@@ -99,7 +99,7 @@ void Controller_node::parameter_init()
     this->declare_parameter<double>("i_limit_max", 0);
     this->declare_parameter<double>("i_c", 0);
     this->declare_parameter<double>("ctrl_rate", 50);
-    this->declare_parameter<std::string>("cmd_topic", "/fmu/vehicle_attitude_setpoint/in");
+    this->declare_parameter<std::string>("cmd_topic", "/fmu/in/vehicle_attitude_setpoint");
 
     param.ctrl_rate = this->get_parameter("ctrl_rate").get_value<double>();
     cmd_topic = this->get_parameter("cmd_topic").get_value<std::string>();

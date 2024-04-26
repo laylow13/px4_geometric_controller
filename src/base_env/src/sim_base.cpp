@@ -19,30 +19,31 @@ Eigen::Vector3d last_vel;
 uint64_t last_timestamp;
 
 void timer_callback();
+
 void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg);
+
 void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target);
+
 void ENU2NED(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target);
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
     rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
     auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
     auto sim_base = std::make_shared<rclcpp::Node>("state_data_convart");
     auto motion_sub = sim_base->create_subscription<px4_msgs::msg::VehicleOdometry>(
-        "/fmu/vehicle_odometry/out", qos, &motion_cb);
+            "/fmu/out/vehicle_odometry", qos, &motion_cb);
     state_pub = sim_base->create_publisher<base_env::msg::UAVMotion>("/SCIT_drone/UAV_motion", 10);
     // TODO: change loop rate
     auto timer = sim_base->create_wall_timer(
-        std::chrono::milliseconds(20),
-        &timer_callback);
+            std::chrono::milliseconds(20),
+            &timer_callback);
     rclcpp::spin(sim_base);
     rclcpp::shutdown();
     return 0;
 }
 
-void timer_callback()
-{
+void timer_callback() {
     base_env::msg::UAVMotion target;
     NED2ENU(motion, target);
     state_pub->publish(target);
@@ -52,21 +53,20 @@ void timer_callback()
     RCLCPP_DEBUG(rclcpp::get_logger("sim_base"), "Timer event");
 }
 
-void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
-{
+void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
     motion.timestamp = msg->timestamp;
     double dt = (msg->timestamp - last_timestamp) * 1e-6;
     last_timestamp = msg->timestamp;
-    motion.linear.pos.x = msg->x;
-    motion.linear.pos.y = msg->y;
-    motion.linear.pos.z = msg->z;
-    motion.linear.vel.x = msg->vx;
-    motion.linear.vel.y = msg->vy;
-    motion.linear.vel.z = msg->vz;
-    motion.linear.acc.x = (msg->vx - last_vel(0)) / dt;
-    motion.linear.acc.y = (msg->vy - last_vel(1)) / dt;
-    motion.linear.acc.z = (msg->vz - last_vel(2)) / dt;
-    last_vel << msg->vx, msg->vy, msg->vz;
+    motion.linear.pos.x = msg->position[0];
+    motion.linear.pos.y = msg->position[1];
+    motion.linear.pos.z = msg->position[2];
+    motion.linear.vel.x = msg->velocity[0];
+    motion.linear.vel.y = msg->velocity[1];
+    motion.linear.vel.z = msg->velocity[2];
+    motion.linear.acc.x = (msg->velocity[0] - last_vel(0)) / dt;
+    motion.linear.acc.y = (msg->velocity[1] - last_vel(1)) / dt;
+    motion.linear.acc.z = (msg->velocity[2] - last_vel(2)) / dt;
+    last_vel << msg->velocity[0], msg->velocity[1], msg->velocity[2];
     motion.angular.q.w = msg->q[0];
     motion.angular.q.x = msg->q[1];
     motion.angular.q.y = msg->q[2];
@@ -74,8 +74,7 @@ void motion_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg)
     RCLCPP_DEBUG(rclcpp::get_logger("sim_base"), "Received message");
 }
 
-void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target)
-{
+void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target) {
     /*NED2ENU map: Controller_local:ENU -> PX4_local:NED ->  PX4_body:FRD/NED -> Controller_body:FLU/ENU
         _src: PX4_local:NED ->  PX4_body:FRD/NED
         _target: Controller_local: ENU -> PX4_local:NED ->  PX4_body:FRD/NED -> Controller_body:FLU/ENU*/
@@ -108,6 +107,6 @@ void NED2ENU(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target)
     _target.angular.q.z = q.z();
     _target.angular.q.w = q.w();
 }
-void ENU2NED(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target)
-{
+
+void ENU2NED(base_env::msg::UAVMotion &_src, base_env::msg::UAVMotion &_target) {
 }

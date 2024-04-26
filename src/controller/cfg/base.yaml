@@ -9,7 +9,7 @@
     Ki0: 0.0
     Ki1: 0.0
     Ki2: 0.4
-    cmd_topic: /fmu/vehicle_attitude_setpoint/in
+    cmd_topic: /fmu/in/vehicle_attitude_setpoint
     ctrl_rate: 50.0
     gra: 9.81
     hov_percent: 0.42
