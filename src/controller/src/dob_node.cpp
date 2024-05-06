@@ -40,29 +40,29 @@ private:
     std::array<Lpf_1st, 3> df_filter;
     double m;
 
-    void state_sub_cb(const base_env::msg::UAVMotion &msg)
+    void state_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg)
     {
-        pos(0) = msg.linear.pos.x;
-        pos(1) = msg.linear.pos.y;
-        pos(2) = msg.linear.pos.z;
+        pos(0) = msg->linear.pos.x;
+        pos(1) = msg->linear.pos.y;
+        pos(2) = msg->linear.pos.z;
 
-        vel(0) = msg.linear.vel.x;
-        vel(1) = msg.linear.vel.y;
-        vel(2) = msg.linear.vel.z;
+        vel(0) = msg->linear.vel.x;
+        vel(1) = msg->linear.vel.y;
+        vel(2) = msg->linear.vel.z;
 
-        acc(0) = msg.linear.acc.x;
-        acc(1) = msg.linear.acc.y;
-        acc(2) = msg.linear.acc.z;
+        acc(0) = msg->linear.acc.x;
+        acc(1) = msg->linear.acc.y;
+        acc(2) = msg->linear.acc.z;
 
-        Eigen::Quaterniond q{msg.angular.q.w, msg.angular.q.x, msg.angular.q.y, msg.angular.q.z};
+        Eigen::Quaterniond q{msg->angular.q.w, msg->angular.q.x, msg->angular.q.y, msg->angular.q.z};
         R = q.toRotationMatrix();
-        // timestamp = msg.timestamp;
+        // timestamp = msg->timestamp;
     }
-    void thrust_sub_cb(const base_env::msg::UAVThrust &msg)
+    void thrust_sub_cb(const base_env::msg::UAVThrust::SharedPtr msg)
     {
-        thrust(0) = msg.thrust.x;
-        thrust(1) = msg.thrust.y;
-        thrust(2) = msg.thrust.z;
+        thrust(0) = msg->thrust.x;
+        thrust(1) = msg->thrust.y;
+        thrust(2) = msg->thrust.z;
     }
     void calculate_df()
     {

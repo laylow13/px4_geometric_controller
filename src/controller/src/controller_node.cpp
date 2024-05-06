@@ -76,8 +76,8 @@ private:
     void publish_controller_cmd();
     void publish_thrust();
     void ENU2NED(attitude_sp_t &_src, attitude_sp_t &_target);
-    void motion_sub_cb(const base_env::msg::UAVMotion &msg);
-    void motion_expect_sub_cb(const base_env::msg::UAVMotion &msg);
+    void motion_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg);
+    void motion_expect_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg);
     void hte_sub_cb(const px4_msgs::msg::HoverThrustEstimate::SharedPtr msg);
     void disturbance_sub_cb(const base_env::msg::UAVDisturbance::SharedPtr msg);
 };
@@ -193,26 +193,26 @@ void Controller_node::ENU2NED(attitude_sp_t &_src, attitude_sp_t &_target)
     _target.q[2] = q.y();
     _target.q[3] = q.z();
 }
-void Controller_node::motion_sub_cb(const base_env::msg::UAVMotion &msg)
+void Controller_node::motion_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg)
 {
-    UAV_motion.linear.pos << msg.linear.pos.x, msg.linear.pos.y, msg.linear.pos.z;
-    UAV_motion.linear.vel << msg.linear.vel.x, msg.linear.vel.y, msg.linear.vel.z;
-    UAV_motion.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z;
-    UAV_motion.linear.jerk << msg.linear.jerk.x, msg.linear.jerk.y, msg.linear.jerk.z;
-    UAV_motion.angular.q = Eigen::Quaterniond(msg.angular.q.w, msg.angular.q.x, msg.angular.q.y, msg.angular.q.z);
-    UAV_motion.angular.vel << msg.angular.vel.x, msg.angular.vel.y, msg.angular.vel.z;
-    UAV_motion.angular.acc << msg.angular.acc.x, msg.angular.acc.y, msg.angular.acc.z;
-    // timestamp = msg.timestamp;
+    UAV_motion.linear.pos << msg->linear.pos.x, msg->linear.pos.y, msg->linear.pos.z;
+    UAV_motion.linear.vel << msg->linear.vel.x, msg->linear.vel.y, msg->linear.vel.z;
+    UAV_motion.linear.acc << msg->linear.acc.x, msg->linear.acc.y, msg->linear.acc.z;
+    UAV_motion.linear.jerk << msg->linear.jerk.x, msg->linear.jerk.y, msg->linear.jerk.z;
+    UAV_motion.angular.q = Eigen::Quaterniond(msg->angular.q.w, msg->angular.q.x, msg->angular.q.y, msg->angular.q.z);
+    UAV_motion.angular.vel << msg->angular.vel.x, msg->angular.vel.y, msg->angular.vel.z;
+    UAV_motion.angular.acc << msg->angular.acc.x, msg->angular.acc.y, msg->angular.acc.z;
+    // timestamp = msg->timestamp;
 }
-void Controller_node::motion_expect_sub_cb(const base_env::msg::UAVMotion &msg)
+void Controller_node::motion_expect_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg)
 {
-    UAV_motion_expect.linear.pos << msg.linear.pos.x, msg.linear.pos.y, msg.linear.pos.z;
-    UAV_motion_expect.linear.vel << msg.linear.vel.x, msg.linear.vel.y, msg.linear.vel.z;
-    UAV_motion_expect.linear.acc << msg.linear.acc.x, msg.linear.acc.y, msg.linear.acc.z;
-    UAV_motion_expect.linear.jerk << msg.linear.jerk.x, msg.linear.jerk.y, msg.linear.jerk.z;
-    UAV_motion_expect.angular.q = Eigen::Quaterniond(msg.angular.q.w, msg.angular.q.x, msg.angular.q.y, msg.angular.q.z);
-    UAV_motion_expect.angular.vel << msg.angular.vel.x, msg.angular.vel.y, msg.angular.vel.z;
-    UAV_motion_expect.angular.acc << msg.angular.acc.x, msg.angular.acc.y, msg.angular.acc.z;
+    UAV_motion_expect.linear.pos << msg->linear.pos.x, msg->linear.pos.y, msg->linear.pos.z;
+    UAV_motion_expect.linear.vel << msg->linear.vel.x, msg->linear.vel.y, msg->linear.vel.z;
+    UAV_motion_expect.linear.acc << msg->linear.acc.x, msg->linear.acc.y, msg->linear.acc.z;
+    UAV_motion_expect.linear.jerk << msg->linear.jerk.x, msg->linear.jerk.y, msg->linear.jerk.z;
+    UAV_motion_expect.angular.q = Eigen::Quaterniond(msg->angular.q.w, msg->angular.q.x, msg->angular.q.y, msg->angular.q.z);
+    UAV_motion_expect.angular.vel << msg->angular.vel.x, msg->angular.vel.y, msg->angular.vel.z;
+    UAV_motion_expect.angular.acc << msg->angular.acc.x, msg->angular.acc.y, msg->angular.acc.z;
 }
 void Controller_node::hte_sub_cb(const px4_msgs::msg::HoverThrustEstimate::SharedPtr msg)
 {
