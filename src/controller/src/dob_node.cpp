@@ -4,9 +4,9 @@
 #include <array>
 #include "lpf1st.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "base_env/msg/uav_motion.hpp"
-#include "base_env/msg/uav_thrust.hpp"
-#include "base_env/msg/uav_disturbance.hpp"
+#include "utils/msg/uav_motion.hpp"
+#include "utils/msg/uav_thrust.hpp"
+#include "utils/msg/uav_disturbance.hpp"
 
 using std::placeholders::_1;
 
@@ -16,20 +16,20 @@ public:
     DOB_node() : Node("DOB"), df_filter({{{0.2, 0.02}, {0.2, 0.02}, {0.2, 0.02}}}), m(1.535)
     {
         // m = this->get_parameter("mass").get_value<double>();
-        state_sub = this->create_subscription<base_env::msg::UAVMotion>(
+        state_sub = this->create_subscription<utils::msg::UAVMotion>(
             "/SCIT_drone/UAV_motion", 10, std::bind(&DOB_node::state_sub_cb, this, _1));
-        thrust_sub = this->create_subscription<base_env::msg::UAVThrust>(
+        thrust_sub = this->create_subscription<utils::msg::UAVThrust>(
             "SCIT_drone/UAV_thrust", 10, std::bind(&DOB_node::thrust_sub_cb, this, _1));
-        disturbance_pub = this->create_publisher<base_env::msg::UAVDisturbance>("SCIT_drone/UAV_disturbance", 10);
+        disturbance_pub = this->create_publisher<utils::msg::UAVDisturbance>("SCIT_drone/UAV_disturbance", 10);
         timer = this->create_wall_timer(
             std::chrono::milliseconds(20),
             std::bind(&DOB_node::timer_callback, this));
     }
 
 private:
-    rclcpp::Subscription<base_env::msg::UAVMotion>::SharedPtr state_sub;
-    rclcpp::Subscription<base_env::msg::UAVThrust>::SharedPtr thrust_sub;
-    rclcpp::Publisher<base_env::msg::UAVDisturbance>::SharedPtr disturbance_pub;
+    rclcpp::Subscription<utils::msg::UAVMotion>::SharedPtr state_sub;
+    rclcpp::Subscription<utils::msg::UAVThrust>::SharedPtr thrust_sub;
+    rclcpp::Publisher<utils::msg::UAVDisturbance>::SharedPtr disturbance_pub;
     rclcpp::TimerBase::SharedPtr timer;
     Eigen::Vector3d pos;
     Eigen::Vector3d vel;
@@ -40,7 +40,7 @@ private:
     std::array<Lpf_1st, 3> df_filter;
     double m;
 
-    void state_sub_cb(const base_env::msg::UAVMotion::SharedPtr msg)
+    void state_sub_cb(const utils::msg::UAVMotion::SharedPtr msg)
     {
         pos(0) = msg->linear.pos.x;
         pos(1) = msg->linear.pos.y;
@@ -58,7 +58,7 @@ private:
         R = q.toRotationMatrix();
         // timestamp = msg->timestamp;
     }
-    void thrust_sub_cb(const base_env::msg::UAVThrust::SharedPtr msg)
+    void thrust_sub_cb(const utils::msg::UAVThrust::SharedPtr msg)
     {
         thrust(0) = msg->thrust.x;
         thrust(1) = msg->thrust.y;
@@ -76,8 +76,8 @@ private:
     void timer_callback()
     {
         calculate_df();
-        base_env::msg::UAVDisturbance msg;
-        msg.frame_type = base_env::msg::UAVDisturbance::ENU;
+        utils::msg::UAVDisturbance msg;
+        msg.frame_type = utils::msg::UAVDisturbance::ENU;
         msg.df.x = df(0);
         msg.df.y = df(1);
         msg.df.z = df(2);

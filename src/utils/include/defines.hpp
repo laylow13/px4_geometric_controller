@@ -3,25 +3,19 @@
 
 #include "Eigen/Eigen"
 
-struct UAV_motion_linear_t {
-    Eigen::Vector3d pos;
-    Eigen::Vector3d vel;
-    Eigen::Vector3d acc;
-    Eigen::Vector3d jerk;
-};
+#define FRAME_WORLD_NED 0
+#define FRAME_WORLD_ENU 1
 
-struct UAV_motion_angular_t {
-    Eigen::Quaterniond q;
-    Eigen::Vector3d vel;
-    Eigen::Vector3d acc;
-};
-
-struct UAV_motion_t {
-    UAV_motion_linear_t linear;
-    UAV_motion_angular_t angular;
-};
+#define FRAME_BODY_FRD 2
+#define FRAME_BODY_FLU 3
 
 struct state_t {
+    struct TimeStamp {
+        int32_t sec;
+        uint32_t nanosec;
+    } timestamp;
+    uint8_t world_frame;
+    uint8_t body_frame;
     Eigen::Vector3d x;
     Eigen::Vector3d x_dot;
     Eigen::Vector3d x_2dot;
@@ -31,7 +25,14 @@ struct state_t {
     Eigen::Vector3d w;
     Eigen::Vector3d w_dot;
 };
+
 struct command_t {
+    struct TimeStamp {
+        int32_t sec;
+        uint32_t nanosec;
+    } timestamp;
+    uint8_t world_frame;
+    uint8_t body_frame;
     Eigen::Vector3d x;
     Eigen::Vector3d x_dot;
     Eigen::Vector3d x_2dot;

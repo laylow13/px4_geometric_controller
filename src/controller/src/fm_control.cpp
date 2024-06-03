@@ -2,8 +2,8 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 #include "fdcl/control.hpp"
-#include "base_env/msg/uav_state.hpp"
-#include "base_env/msg/uav_cmd.hpp"
+#include "utils/msg/uav_state.hpp"
+#include "utils/msg/uav_cmd.hpp"
 
 
 class fdcl_controller_node : public rclcpp::Node
@@ -18,9 +18,9 @@ public:
         config_file->open("../cfg/uav.cfg");
         controller.reinit(state,command,config_file);
 
-        state_sub = this->create_subscription<base_env::msg::UAVState>(
+        state_sub = this->create_subscription<utils::msg::UAVState>(
             "uav_state", 10, std::bind(&fdcl_controller_node::state_sub_cb, this, _1));
-        cmd_sub = this->create_subscription<base_env::msg::UAVCmd>(
+        cmd_sub = this->create_subscription<utils::msg::UAVCmd>(
             "uav_command", 10, std::bind(&fdcl_controller_node::cmd_sub_cb, this, _1));
         fm_pub = this->create_publisher</* msg_type */>(" ", 10);
 
