@@ -22,15 +22,8 @@ public:
 private:
     rclcpp::Subscription<px4_msgs::msg::VehicleOdometry>::SharedPtr px4_odometry_sub;
     state_t px4_state;
-//    double Ts;
-//    double tau;
-//    Dirty_derivative<Vector3d> x_2dot{1, tau, Ts};
-//    Dirty_derivative<Vector3d> x_3dot{2, tau, Ts};
-//    Dirty_derivative<Vector3d> x_4dot{3, tau, Ts};
-//    Dirty_derivative<Vector3d> w_dot{1, tau, Ts};
 
-
-    state_t &get_current_state() {
+    state_t &get_current_state() override {
         return px4_state;
     }
 
@@ -40,13 +33,9 @@ private:
         px4_state.body_frame = FRAME_BODY_FRD;
         px4_state.x << msg->position[0], msg->position[1], msg->position[2];
         px4_state.x_dot << msg->velocity[0], msg->velocity[1], msg->velocity[2];
-//        px4_state.x_2dot = x_2dot.calculate(px4_state.x_dot);
-//        px4_state.x_3dot = x_3dot.calculate(px4_state.x_2dot);
-//        px4_state.x_4dot = x_4dot.calculate(px4_state.x_3dot);
 
         px4_state.q = Eigen::Quaterniond(msg->q[0], msg->q[1], msg->q[2], msg->q[3]);
         px4_state.w << msg->angular_velocity[0], msg->angular_velocity[1], msg->angular_velocity[2];
-//        px4_state.w_dot = w_dot.calculate(px4_state.w);
     }
 };
 

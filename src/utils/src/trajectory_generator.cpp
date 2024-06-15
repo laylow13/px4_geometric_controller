@@ -46,37 +46,42 @@ void timer_callback() {
 }
 
 void round_traj(UAVCommand &_traj, float _r, float _w, float _t) {
-    _traj.xd.x = _r * cos(_w * _t);
-    _traj.xd.y = _r * sin(_w * _t);
-    _traj.xd.z = 2.0;
-    _traj.xd_dot.x = -_w * _r * sin(_w * _t);
-    _traj.xd_dot.y = _w * _r * cos(_w * _t);
-    _traj.xd_dot.z = 0.0;
-    _traj.xd_2dot.x = -_w * _w * _r * cos(_w * _t);
-    _traj.xd_2dot.y = -_w * _w * _r * sin(_w * _t);
-    _traj.xd_2dot.z = 0.0;
-    _traj.xd_3dot.x = pow(_w, 3) * _r * sin(_w * _t);
-    _traj.xd_3dot.y = -pow(_w, 3) * _r * cos(_w * _t);
-    _traj.xd_3dot.z = 0.0;
-    _traj.xd_4dot.x = pow(_w, 4) * _r * cos(_w * _t);
-    _traj.xd_4dot.y = pow(_w, 4) * _r * sin(_w * _t);
-    _traj.xd_4dot.z = 0.0;
+//    _traj.header.stamp
+//    _traj.world_frame=;
+//    _traj.body_frame=;
+    _traj.pos.x = _r * cos(_w * _t);
+    _traj.pos.y = _r * sin(_w * _t);
+    _traj.pos.z = 2.0;
+    _traj.vel.x = -_w * _r * sin(_w * _t);
+    _traj.vel.y = _w * _r * cos(_w * _t);
+    _traj.vel.z = 0.0;
+    _traj.acc.x = -_w * _w * _r * cos(_w * _t);
+    _traj.acc.y = -_w * _w * _r * sin(_w * _t);
+    _traj.acc.z = 0.0;
+    _traj.jerk.x = pow(_w, 3) * _r * sin(_w * _t);
+    _traj.jerk.y = -pow(_w, 3) * _r * cos(_w * _t);
+    _traj.jerk.z = 0.0;
+    _traj.snap.x = pow(_w, 4) * _r * cos(_w * _t);
+    _traj.snap.y = pow(_w, 4) * _r * sin(_w * _t);
+    _traj.snap.z = 0.0;
+
+//    _traj.heading.x=
 }
 
 void pos(UAVCommand &_traj, float _t) {
-    _traj.xd.x = 0.0;
-    _traj.xd.y = 0.0;
-    _traj.xd.z = 2.0;
-    _traj.xd_dot.x = 0.0;
-    _traj.xd_dot.y = 0.0;
-    _traj.xd_dot.z = 0.0;
-    _traj.xd_2dot.x = 0.0;
-    _traj.xd_2dot.y = 0.0;
-    _traj.xd_2dot.z = 0.0;
-    _traj.xd_3dot.x = 0.0;
-    _traj.xd_3dot.y = 0.0;
-    _traj.xd_3dot.z = 0.0;
-    _traj.xd_4dot.x = 0.0;
-    _traj.xd_4dot.y = 0.0;
-    _traj.xd_4dot.z = 0.0;
+    _traj.pos.x = 0.0;
+    _traj.pos.y = 0.0;
+    _traj.pos.z = 2.0;
+    _traj.vel.x = 0.0;
+    _traj.vel.y = 0.0;
+    _traj.vel.z = 0.0;
+    _traj.acc.x = 0.0;
+    _traj.acc.y = 0.0;
+    _traj.acc.z = 0.0;
+    _traj.jerk.x = 0.0;
+    _traj.jerk.y = 0.0;
+    _traj.jerk.z = 0.0;
+    _traj.snap.x = 0.0;
+    _traj.snap.y = 0.0;
+    _traj.snap.z = 0.0;
 }

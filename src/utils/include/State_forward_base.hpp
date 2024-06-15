@@ -3,15 +3,17 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "string"
-#include "defines.hpp"
+#include "type_definitions.hpp"
 #include "utils/msg/uav_state_feedback.hpp"
 #include "Eigen/Eigen"
+#include "Dirty_derivative.hpp"
+#include "memory"
 
 using namespace Eigen;
 
 class State_forward_base : public rclcpp::Node {
 public:
-    State_forward_base(std::string node_name) : Node(node_name) {
+    State_forward_base(std::string node_name) : Node(node_name), tau(0.5) {
         state_pub = this->create_publisher<utils::msg::UAVStateFeedback>("/SCIT_drone/UAV_state_feedback", 10);
         this->declare_parameter<int>("frequency", 50);
         this->declare_parameter<uint8_t>("world_frame", FRAME_WORLD_NED);
@@ -19,6 +21,10 @@ public:
         frequency = this->get_parameter("frequency").get_value<int>();
         target_world_frame = this->get_parameter("world_frame").get_value<uint8_t>();
         target_body_frame = this->get_parameter("body_frame").get_value<uint8_t>();
+        x_2dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
+        x_3dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(2, tau, 1. / frequency);
+        x_4dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(3, tau, 1. / frequency);
+        w_dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
         timer = this->create_wall_timer(std::chrono::milliseconds(int(1000 / frequency)),
                                         std::bind(&State_forward_base::timer_cb, this));
     }
@@ -30,47 +36,58 @@ private:
     state_t current_state;
     rclcpp::Publisher<utils::msg::UAVStateFeedback>::SharedPtr state_pub;
     rclcpp::TimerBase::SharedPtr timer;
+    double tau;
+    std::shared_ptr<Dirty_derivative<Vector3d>> x_2dot_differentiator;
+    std::shared_ptr<Dirty_derivative<Vector3d>> x_3dot_differentiator;
+    std::shared_ptr<Dirty_derivative<Vector3d>> x_4dot_differentiator;
+    std::shared_ptr<Dirty_derivative<Vector3d>> w_dot_differentiator;
 
 private:
     virtual state_t &get_current_state() = 0;
 
     void timer_cb() {
         current_state = get_current_state();
-//        state_t target_state;
-//        transform(current_state, target_state, target_world_frame, target_body_frame);
+        current_state.x_2dot = x_2dot_differentiator->calculate(current_state.x_dot);
+        current_state.x_3dot = x_3dot_differentiator->calculate(current_state.x_2dot);
+        current_state.x_4dot = x_4dot_differentiator->calculate(current_state.x_3dot);
+        current_state.w_dot = w_dot_differentiator->calculate(current_state.w);
+
+        state_t target_state;
+        transform(current_state, target_state, target_world_frame, target_body_frame);
 
         utils::msg::UAVStateFeedback msg;
         msg.header.stamp.sec = current_state.timestamp.sec;
         msg.header.stamp.nanosec = current_state.timestamp.nanosec;
-        msg.world_frame = current_state.world_frame;
-        msg.body_frame = current_state.body_frame;
-        msg.x.x = current_state.x(0);
-        msg.x.y = current_state.x(1);
-        msg.x.z = current_state.x(2);
-        msg.x_dot.x = current_state.x_dot(0);
-        msg.x_dot.y = current_state.x_dot(1);
-        msg.x_dot.z = current_state.x_dot(2);
-        msg.x_2dot.x = current_state.x_2dot(0);
-        msg.x_2dot.y = current_state.x_2dot(1);
-        msg.x_2dot.z = current_state.x_2dot(2);
-        msg.x_3dot.x = current_state.x_3dot(0);
-        msg.x_3dot.y = current_state.x_3dot(1);
-        msg.x_3dot.z = current_state.x_3dot(2);
-        msg.x_4dot.x = current_state.x_4dot(0);
-        msg.x_4dot.y = current_state.x_4dot(1);
-        msg.x_4dot.z = current_state.x_4dot(2);
+        msg.world_frame = target_world_frame;
+        msg.body_frame = target_body_frame;
+        msg.pos.x = target_state.x(0);
+        msg.pos.y = target_state.x(1);
+        msg.pos.z = target_state.x(2);
+        msg.vel.x = target_state.x_dot(0);
+        msg.vel.y = target_state.x_dot(1);
+        msg.vel.z = target_state.x_dot(2);
+        msg.acc.x = target_state.x_2dot(0);
+        msg.acc.y = target_state.x_2dot(1);
+        msg.acc.z = target_state.x_2dot(2);
+        msg.jerk.x = target_state.x_3dot(0);
+        msg.jerk.y = target_state.x_3dot(1);
+        msg.jerk.z = target_state.x_3dot(2);
+        msg.snap.x = target_state.x_4dot(0);
+        msg.snap.y = target_state.x_4dot(1);
+        msg.snap.z = target_state.x_4dot(2);
 
-        msg.q.w = current_state.q.w();
-        msg.q.x = current_state.q.x();
-        msg.q.y = current_state.q.y();
-        msg.q.z = current_state.q.z();
+        msg.q.w = target_state.q.w();
+        msg.q.x = target_state.q.x();
+        msg.q.y = target_state.q.y();
+        msg.q.z = target_state.q.z();
 
-        msg.w.x = current_state.w(0);
-        msg.w.y = current_state.w(1);
-        msg.w.z = target_state.w(2);
-        msg.w_dot.x = target_state.w_dot(0);
-        msg.w_dot.y = target_state.w_dot(1);
-        msg.w_dot.z = target_state.w_dot(2);
+        msg.ang_vel.x = target_state.w(0);
+        msg.ang_vel.y = target_state.w(1);
+        msg.ang_vel.z = target_state.w(2);
+        msg.ang_acc.x = target_state.w_dot(0);
+        msg.ang_acc.y = target_state.w_dot(1);
+        msg.ang_acc.z = target_state.w_dot(2);
+
         state_pub->publish(msg);
     }
 

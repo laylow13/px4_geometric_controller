@@ -8,8 +8,6 @@ endif ()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-
-# find_package(rospy REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -49,12 +47,8 @@ add_executable(sim_state_forward src/sim_state_forward.cpp)
 
 target_include_directories(sim_state_forward PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-
-        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/frame_transforms/include>
         $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>)
-
-target_link_libraries(sim_state_forward frame_transforms)
 
 target_compile_features(sim_state_forward PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
 
@@ -68,8 +62,6 @@ add_executable(trajectory_generator src/trajectory_generator.cpp)
 
 target_include_directories(trajectory_generator PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-
-        # $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/frame_transforms/include>
         $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>)
 
@@ -96,21 +88,6 @@ ament_target_dependencies(
         "px4_msgs"
 )
 
-#add_executable(mocap_feedback_test src/mocap_feedback_TEST.cpp)
-
-#target_include_directories(mocap_feedback_test PUBLIC
-#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#  $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
-#  $<INSTALL_INTERFACE:include>)
-#
-#target_compile_features(mocap_feedback_test PUBLIC c_std_99 cxx_std_17) # Require C99 and C++17
-
-#ament_target_dependencies(
-#  mocap_feedback_test
-#  "rclcpp"
-#  "px4_msgs"
-#)
-
 rosidl_target_interfaces(mocap_state_forward
         ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
@@ -129,6 +106,12 @@ install(DIRECTORY launch
 install(DIRECTORY cfg
         DESTINATION share/${PROJECT_NAME}
 )
+
+install(
+        DIRECTORY include/
+        DESTINATION include/${PROJECT_NAME}
+)
+#ament_export_include_directories(include)
 
 if (BUILD_TESTING)
     find_package(ament_lint_auto REQUIRED)

@@ -1,18 +1,21 @@
-/controller_node:
+/geometric_controller_node:
   ros__parameters:
-    mass        : 2.18
-    gra         : 9.81
-    hov_percent : 0.3
-    i_c : 1.5
-    i_limit_max : 0.5
-    ctrl_rate   : 50.0
-    Kp0: 4.1 #1.5
-    Kp1: 4.1 #5
-    Kp2: 4.5
-    Kv0: 9.0 #6
-    Kv1: 9.0 #6
-    Kv2: 5.5 #6
-    Ki0: 0.0
-    Ki1: 0.0
-    Ki2: 0.0
-    cmd_topic : "/fmu/in/vehicle_attitude_setpoint"
+    use_decoupled_yaw: 1
+    kX: 16.0, 16.0, 16.0
+    kV: 13.0, 13.0, 13.0
+    kR: 1.6, 1.6, 0.60
+    kW: 0.40, 0.40, 0.10
+    c_tf: 0.0135
+    l: 0.23
+    use_integral: 1
+    kIX: 4.0
+    ki: 0.01
+    kIR: 0.015
+    kI: 0.01
+    kyI: 0.02
+    c1: 1.0
+    c2: 1.0
+    c3: 1.0
+    J: 0.02, 0.0, 0.0, 0.0, 0.02, 0.0, 0.0, 0.0, 0.04
+    m: 1.95
+    g: 9.81
