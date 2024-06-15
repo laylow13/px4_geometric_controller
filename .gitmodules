@@ -10,6 +10,3 @@
 	path = src/px4_ros_com_1.14
 	url = https://github.com/PX4/px4_ros_com.git
 	branch = release/v1.14
-[submodule "src/controller/lib/fdcl_geometric_control"]
-	path = src/controller/lib/fdcl_geometric_control
-	url = https://github.com/fdcl-gwu/uav_geometric_control.git
