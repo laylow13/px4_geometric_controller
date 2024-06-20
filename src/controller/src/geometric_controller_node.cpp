@@ -23,8 +23,8 @@ public:
         state = std::make_shared<state_t>();
         command = std::make_shared<command_t>();
         geometric_param = std::make_shared<geometric_param_t>();
-        controller = std::make_shared<Geometric_control>();
-        controller->init(command, state, geometric_param);
+        controller = std::make_shared<Geometric_control>(command, state, geometric_param);
+//        controller->init(command, state, geometric_param);
         parameter_init();
         parameter_update();
         thrust_cmd_pub = this->create_publisher<px4_msgs::msg::VehicleThrustSetpoint>(
@@ -35,14 +35,16 @@ public:
         state_sub = this->create_subscription<utils::msg::UAVStateFeedback>(
                 "/SCIT_drone/UAV_state_feedback", 10, std::bind(&Controller_node::state_sub_cb, this, _1));
         command_sub = this->create_subscription<utils::msg::UAVCommand>(
-                "/SCIT_drone/UAV_command", 10, std::bind(&Controller_node::command_sub_cb, this, _1));
-        mode_sub = this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/out/vehicle_status", 10,
+                "/SCIT_drone/UAV_trajectory_command", 10, std::bind(&Controller_node::command_sub_cb, this, _1));
+        rmw_qos_profile_t qos_profile = rmw_qos_profile_sensor_data;
+        auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, 5), qos_profile);
+        mode_sub = this->create_subscription<px4_msgs::msg::VehicleStatus>("/fmu/out/vehicle_status", qos,
                                                                            [this](const px4_msgs::msg::VehicleStatus::UniquePtr msg) {
                                                                                is_posctl = msg->nav_state == 2;
                                                                                is_offboard = msg->nav_state == 14;
                                                                            });
         timer_ = this->create_wall_timer(
-                std::chrono::milliseconds(int(1000)),
+                std::chrono::milliseconds(int(1000 / geometric_param->frequency)),
                 std::bind(&Controller_node::timer_callback, this));
     }
 
@@ -79,44 +81,47 @@ private:
 };
 
 void Controller_node::parameter_init() {
-    parameters_ = {{"J1",                0},
-                   {"J2",                0},
-                   {"J3",                0},
-                   {"m",                 0},
+    parameters_ = {{"J1",                1.0},
+                   {"J2",                1.0},
+                   {"J3",                1.0},
+                   {"m",                 1.0},
                    {"g",                 9.81},
-                   {"thrust_scale",      1},
-                   {"torque_scale",      1},
-                   {"use_decoupled_yaw", 0},
-                   {"kX1",               0},
-                   {"kX2",               0},
-                   {"kX3",               0},
-                   {"kV1",               0},
-                   {"kV2",               0},
-                   {"kV3",               0},
-                   {"kR1",               0},
-                   {"kR2",               0},
-                   {"kR3",               0},
-                   {"kW1",               0},
-                   {"kW2",               0},
-                   {"kW3",               0},
-                   {"c_tf",              0},
-                   {"l",                 0},
-                   {"use_integral",      1},
-                   {"kIX",               0},
-                   {"ki ",               0},
-                   {"kIR",               0},
-                   {"kI ",               0},
-                   {"kyI",               0},
-                   {"c1 ",               0},
-                   {"c2 ",               0},
-                   {"c3 ",               0}
+                   {"thrust_scale",      1.0},
+                   {"torque_scale",      1.0},
+                   {"frequency",         100.0},
+                   {"c_tf",              0.0},
+                   {"l",                 0.0},
+                   {"use_decoupled_yaw", 0.0},
+                   {"kX1",               1.0},
+                   {"kX2",               1.0},
+                   {"kX3",               1.0},
+                   {"kV1",               1.0},
+                   {"kV2",               1.0},
+                   {"kV3",               1.0},
+                   {"kR1",               1.0},
+                   {"kR2",               1.0},
+                   {"kR3",               1.0},
+                   {"kW1",               1.0},
+                   {"kW2",               1.0},
+                   {"kW3",               1.0},
+                   {"use_integral",      1.0},
+                   {"int_limit",         0.0},
+                   {"kIX",               0.0},
+                   {"ki ",               0.0},
+                   {"kIR",               0.0},
+                   {"kI ",               0.0},
+                   {"kyI",               0.0},
+                   {"c1 ",               0.0},
+                   {"c2 ",               0.0},
+                   {"c3 ",               0.0},
+                   {"attctrl_tau",       1.0},
 
     };
-    this->declare_parameters<double>("", parameters_);
+    this->declare_parameters<double>("geometric_control", parameters_);
 }
 
 void Controller_node::parameter_update() {
-    if (this->get_parameters("", parameters_)) {
+    if (this->get_parameters<double>("geometric_control", parameters_)) {
         geometric_param->J.diagonal() << parameters_["J1"], parameters_["J2"], parameters_["J3"];
         geometric_param->m = parameters_["m"];
         geometric_param->g = parameters_["g"];
@@ -124,7 +129,7 @@ void Controller_node::parameter_update() {
         geometric_param->l = parameters_["l"];
         geometric_param->thrust_scale = parameters_["thrust_scale"];
         geometric_param->torque_scale = parameters_["torque_scale"];
-
+        geometric_param->frequency = parameters_["frequency"];
         geometric_param->use_decoupled_yaw = int(parameters_["use_decoupled_yaw"]);
         geometric_param->kX.diagonal() << parameters_["kX1"], parameters_["kX2"], parameters_["kX3"];
         geometric_param->kV.diagonal() << parameters_["kV1"], parameters_["kV2"], parameters_["kV3"];
@@ -132,6 +137,7 @@ void Controller_node::parameter_update() {
         geometric_param->kW.diagonal() << parameters_["kW1"], parameters_["kW2"], parameters_["kW3"];
 
         geometric_param->use_integral = int(parameters_["use_integral"]);
+        geometric_param->int_limit = parameters_["int_limit"];
         geometric_param->kIX = parameters_["kIX"];
         geometric_param->ki = parameters_["ki"];
         geometric_param->kIR = parameters_["kIR"];
@@ -140,6 +146,8 @@ void Controller_node::parameter_update() {
         geometric_param->c1 = parameters_["c1"];
         geometric_param->c2 = parameters_["c2"];
         geometric_param->c3 = parameters_["c3"];
+
+        geometric_param->attctrl_tau = parameters_["attctrl_tau"];
     }
 }
 
@@ -159,24 +167,34 @@ void Controller_node::publish_offboard_control_mode() {
     msg.attitude = false;
     msg.body_rate = false;
     msg.actuator = true;
-    msg.timestamp = timestamp.load();
+    msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
     offboard_pub->publish(msg);
 }
 
 void Controller_node::publish_controller_cmd() {
     Vector4d fM_cmd;
     controller->compute_control_output();
+    controller->get_fM_cmd(fM_cmd, false);
+    RCLCPP_INFO(this->get_logger(), "[raw f]:%.2f [raw M]:%.2f,%.2f,%.2f", fM_cmd(0), fM_cmd(1), fM_cmd(2), fM_cmd(3));
     controller->get_fM_cmd(fM_cmd, true);
+    RCLCPP_INFO(this->get_logger(), "[f]:%.2f [M]:%.2f,%.2f,%.2f", fM_cmd(0), fM_cmd(1), fM_cmd(2), fM_cmd(3));
+    Vector3d eX, eV, eR, eW;
+    controller->get_positional_tracking_error(eX, eV);
+    RCLCPP_INFO(this->get_logger(), "[eX]:%.2f,%.2f,%.2f [eV]:%.2f,%.2f,%.2f", eX(0), eX(1), eX(2), eV(0), eV(1),
+                eV(2));
+    controller->get_rotational_tracking_error(eR, eW);
+    RCLCPP_INFO(this->get_logger(), "[eR]:%.2f,%.2f,%.2f [eW]:%.2f,%.2f,%.2f", eR(0), eR(1), eR(2), eW(0), eW(1),
+                eW(2));
     px4_msgs::msg::VehicleThrustSetpoint thrust_sp{};
     thrust_sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
-    thrust_sp.timestamp_sample = this->get_clock()->now().nanoseconds() / 1000;//TODO:change to state feedback timestamp
+    thrust_sp.timestamp_sample = state->timestamp.sec * uint64_t(1e6) + state->timestamp.nanosec / 1000;
     thrust_sp.xyz[0] = 0;
     thrust_sp.xyz[1] = 0;
     thrust_sp.xyz[2] = fM_cmd(0);
     thrust_cmd_pub->publish(thrust_sp);
     px4_msgs::msg::VehicleTorqueSetpoint torque_sp{};
     torque_sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
-    torque_sp.timestamp_sample = this->get_clock()->now().nanoseconds() / 1000;
+    torque_sp.timestamp_sample = state->timestamp.sec * uint64_t(1e6) + state->timestamp.nanosec / 1000;
     torque_sp.xyz[0] = fM_cmd(1);
     torque_sp.xyz[1] = fM_cmd(2);
     torque_sp.xyz[2] = fM_cmd(3);

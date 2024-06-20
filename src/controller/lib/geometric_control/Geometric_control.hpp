@@ -25,6 +25,8 @@ public:
     double c1;
     double c2;
     double c3;
+
+    double attctrl_tau;
 };
 
 template<typename T>
@@ -80,15 +82,23 @@ private:
 
 class Geometric_control : public Control_base {
 public:
-    Geometric_control();
+    Geometric_control(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<param_t>);
 
-    void init(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<param_t>) override;
+//    void init(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<param_t>) override;
 
     void compute_control_output() override;
 
     void get_fM_cmd(Vector4d &fM_cmd_, bool is_normalized) const override;
 
     void get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const override;
+
+    void get_attitude_cmd(double &thrust_cmd_, Quaterniond &attitude_cmd_, bool is_normalized) const override;
+
+    void get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_vel_cmd_, bool is_normalized) const override;
+
+    void get_positional_tracking_error(Vector3d &eX_, Vector3d &eV_) const override;
+
+    void get_rotational_tracking_error(Vector3d &eR_, Vector3d &eW_) const override;
 
 private:
     void position_control();

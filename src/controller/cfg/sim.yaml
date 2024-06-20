@@ -1,4 +1,37 @@
 /geometric_controller_node:
   ros__parameters:
-
-
+    geometric_control:
+      use_decoupled_yaw: 0.0
+      kX1: 5.0
+      kX2: 5.0
+      kX3: 5.0
+      kV1: 3.0
+      kV2: 3.0
+      kV3: 3.0
+      kR1: 0.3
+      kR2: 0.3
+      kR3: 0.2
+      kW1: 0.1
+      kW2: 0.1
+      kW3: 0.1
+      use_integral: 0.0
+      int_limit: 1.0
+      kIX: 4.0
+      ki: 0.01
+      kIR: 0.015
+      kI: 0.01
+      kyI: 0.02
+      c1: 1.0
+      c2: 1.0
+      c3: 1.0
+      J1: 0.0217
+      J2: 0.0217
+      J3: 0.04
+      m: 2.0
+      g: 9.81
+      c_tf: 0.016
+      l: 0.174
+      thrust_scale: 27.3
+      torque_scale: 5.0
+      attctrl_tau: 1.0
+      frequency: 100.0

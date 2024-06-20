@@ -17,7 +17,7 @@ int main() {
     param->m = 1.95;
     param->g = 9.81;
 
-    param->use_decoupled_yaw = true;
+    param->use_decoupled_yaw = false;
     param->kX.diagonal() << 16.0, 16.0, 16.0;
     param->kV.diagonal() << 13.0, 13.0, 13.0;
     param->kR.diagonal() << 1.6, 1.6, 0.60;
@@ -25,7 +25,7 @@ int main() {
     param->c_tf = 0.0135;
     param->l = 0.23;
 
-    param->use_integral = true;
+    param->use_integral = false;
     param->kIX = 4.0;
     param->ki = 0.01;
     param->kIR = 0.015;
@@ -36,8 +36,8 @@ int main() {
     param->c3 = 1.0;
 
 
-    auto geometric_controller = Geometric_control();
-    geometric_controller.init(command, state, param);
+    auto geometric_controller = Geometric_control(command, state, param);
+//    geometric_controller.init();
     for (int i = 0; i < 10; ++i) {
         state->x << i, i, i;
         state->x_dot.setZero();
@@ -61,3 +61,47 @@ int main() {
     }
     return 0;
 }
+
+
+/*
+i = 0:  f = -19.1295
+       0
+      -0
+       0
+i = 1:  f =  -35.1295
+-0.981254
+ 0.981254
+-0.144619
+i = 2:  f =  -51.1295
+ -1.31339
+  1.31339
+-0.243132
+i = 3:  f =  -67.1295
+ -1.45421
+  1.45421
+-0.281332
+i = 4:  f =  -83.1295
+ -1.52977
+  1.52977
+-0.298069
+i = 5:  f =  -99.1295
+ -1.57645
+  1.57645
+-0.306327
+i = 6:  f =   -115.13
+ -1.60802
+  1.60802
+-0.310758
+i = 7:  f =   -131.13
+ -1.63076
+  1.63076
+-0.313272
+i = 8:  f =   -147.13
+ -1.64789
+  1.64789
+-0.314748
+i = 9:  f =  -163.13
+-1.66126
+ 1.66126
+-0.31563
+ * */

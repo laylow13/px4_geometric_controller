@@ -4,28 +4,59 @@
 
 #include "Geometric_control.hpp"
 
-Geometric_control::Geometric_control() {
+Geometric_control::Geometric_control(shared_ptr<command_t> command_, shared_ptr<state_t> state_,
+                                     shared_ptr<param_t> param_) : Control_base(command_, state_, param_) {
     e1 << 1.0, 0.0, 0.0;
     e2 << 0.0, 1.0, 0.0;
     e3 << 0.0, 0.0, 1.0;
-}
-
-
-void Geometric_control::init(shared_ptr<command_t> command_, shared_ptr<state_t> state_,
-                             shared_ptr<param_t> param_) {
-    this->command = command_;
-    this->state = state_;
-    this->param = param_;
     this->geometric_param = std::static_pointer_cast<geometric_param_t>(this->param);
     this->eIX.set_limit(Vector3d::Constant(-geometric_param->int_limit),
                         Vector3d::Constant(geometric_param->int_limit));
 }
 
+
+//void Geometric_control::init(shared_ptr<command_t> command_, shared_ptr<state_t> state_,
+//                             shared_ptr<param_t> param_) {
+//    this->command = command_;
+//    this->state = state_;
+//    this->param = param_;
+//    this->geometric_param = std::static_pointer_cast<geometric_param_t>(this->param);
+//}
+
+void Geometric_control::compute_control_output() {
+    position_control();
+    // This is set through the config
+    if (geometric_param->use_decoupled_yaw) {
+        attitude_control_decoupled_yaw();
+    } else {
+        attitude_control();
+    }
+}
+
+void Geometric_control::get_attitude_cmd(double &thrust_cmd_, Quaterniond &attitude_cmd_, bool is_normalized) const {
+    thrust_cmd_ = -f_total;
+    if (is_normalized)
+        thrust_cmd_ = std::max(-1.0, std::min(thrust_cmd_ / geometric_param->thrust_scale, 0.0));
+    attitude_cmd_ = Quaterniond(Rd);
+}
+
+void
+Geometric_control::get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_vel_cmd_, bool is_normalized) const {
+    thrust_cmd_ = -f_total;
+    if (is_normalized)
+        thrust_cmd_ = std::max(-1.0, std::min(thrust_cmd_ / geometric_param->thrust_scale, 0.0));
+    ang_vel_cmd_ =
+            eR * 2.0 / geometric_param->attctrl_tau; //Ref https://github.com/Jaeyoung-Lim/mavros_controllers/issues/230
+}
+
 void Geometric_control::get_fM_cmd(Vector4d &fM_cmd_, bool is_normalized) const {
-    fM_cmd_ = Vector4d(f_total, M(0), M(1), M(2));
+    fM_cmd_ = Vector4d(-f_total, M(0), M(1), M(2));
     if (is_normalized) {
-        fM_cmd_(0) = f_total / geometric_param->thrust_scale;
-        fM_cmd_.block(1, 0, 3, 1) = M / geometric_param->torque_scale;
+        fM_cmd_(0) /= geometric_param->thrust_scale;
+        fM_cmd_(0) = std::max(-1.0, std::min(fM_cmd_(0), 0.0)); //constrain normalized f to -1-0
+        fM_cmd_.block(1, 0, 3, 1) /= geometric_param->torque_scale;
+        fM_cmd_.block(1, 0, 3, 1) = fM_cmd_.block(1, 0, 3, 1).cwiseMax(-1.0).cwiseMin(
+                1.0); //constrain normalized f to -1-1
     }
 }
 
@@ -36,15 +67,15 @@ void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normal
     }
 }
 
+void Geometric_control::get_positional_tracking_error(Vector3d &eX_, Vector3d &eV_) const {
+    eX_ = eX;
+    eV_ = eV;
+}
 
-void Geometric_control::compute_control_output() {
-    position_control();
-    // This is set through the config
-    if (geometric_param->use_decoupled_yaw) {
-        attitude_control_decoupled_yaw();
-    } else {
-        attitude_control();
-    }
+
+void Geometric_control::get_rotational_tracking_error(Vector3d &eR_, Vector3d &eW_) const {
+    eR_ = eR;
+    eW_ = eW;
 }
 
 void Geometric_control::position_control() {
@@ -62,11 +93,11 @@ void Geometric_control::position_control() {
 
     // force 'f' along negative b3-axis - eq (14)
     // this term equals to R.e3
-    Vector3d A = -geometric_param->kX * eX \
- - geometric_param->kV * eV \
- - geometric_param->kIX * eIX.get_integral() \
- - geometric_param->m * geometric_param->g * e3 \
- + geometric_param->m * command->x_2dot;
+    Vector3d A = -geometric_param->kX * eX
+                 - geometric_param->kV * eV
+                 - geometric_param->kIX * eIX.get_integral()
+                 - geometric_param->m * geometric_param->g * e3
+                 + geometric_param->m * command->x_2dot;
 
     R = state->q.toRotationMatrix();
     Vector3d b3 = R * e3;
@@ -86,8 +117,8 @@ void Geometric_control::position_control() {
 
     Vector3d A2 = -hat(command->b1d) * b3c;
     Vector3d A2_dot = -hat(command->b1d_dot) * b3c - hat(command->b1d) * b3c_dot;
-    Vector3d A2_ddot = -hat(command->b1d_2dot) * b3c \
- - 2.0 * hat(command->b1d_dot) * b3c_dot
+    Vector3d A2_ddot = -hat(command->b1d_2dot) * b3c
+                       - 2.0 * hat(command->b1d_dot) * b3c_dot
                        - hat(command->b1d) * b3c_ddot;
 
     Vector3d b2c, b2c_dot, b2c_ddot;
@@ -95,9 +126,9 @@ void Geometric_control::position_control() {
 
     b1c = hat(b2c) * b3c;
     Vector3d b1c_dot = hat(b2c_dot) * b3c + hat(b2c) * b3c_dot;
-    Vector3d b1c_ddot = hat(b2c_ddot) * b3c \
- + 2.0 * hat(b2c_dot) * b3c_dot \
- + hat(b2c) * b3c_ddot;
+    Vector3d b1c_ddot = hat(b2c_ddot) * b3c
+                        + 2.0 * hat(b2c_dot) * b3c_dot
+                        + hat(b2c) * b3c_ddot;
 
     Matrix3d Rddot, Rdddot;
 
@@ -106,8 +137,8 @@ void Geometric_control::position_control() {
     Rdddot << b1c_ddot, b2c_ddot, b3c_ddot;
 
     Wd = vee(Rd.transpose() * Rddot);
-    Wd_dot = vee(Rd.transpose() * Rdddot \
- - hat(Wd) * hat(Wd));
+    Wd_dot = vee(Rd.transpose() * Rdddot
+                 - hat(Wd) * hat(Wd));
 
     // roll / pitch
     b3d = b3c;
@@ -131,16 +162,15 @@ void Geometric_control::attitude_control() {
         eIR.integrate(eW + geometric_param->c2 * eR, dt);
     }
 
-    M = -geometric_param->kR * eR \
- - geometric_param->kW * eW \
- - geometric_param->kI * eIR.get_integral() \
- + hat(R.transpose() * Rd * Wd) * geometric_param->J * \
-            R.transpose() * Rd * Wd \
- + geometric_param->J * R.transpose() * Rd * Wd_dot;
+    M = -geometric_param->kR * eR
+        - geometric_param->kW * eW
+        - geometric_param->kI * eIR.get_integral()
+        + hat(R.transpose() * Rd * Wd) * geometric_param->J *
+          R.transpose() * Rd * Wd
+        + geometric_param->J * R.transpose() * Rd * Wd_dot;
 
     fM_cmd << f_total, M(0), M(1), M(2);
 }
-
 
 void Geometric_control::attitude_control_decoupled_yaw() {
     // This uses the controller defined in "Geometric Controls of a Quadrotor
@@ -176,10 +206,9 @@ void Geometric_control::attitude_control_decoupled_yaw() {
 
     // control moment for the roll/pitch dynamics - eq (31)
     Vector3d tau;
-    tau = -geometric_param->kR(0, 0) * eb \
- - geometric_param->kW(0, 0) * ew \
- - geometric_param->J(0, 0) * b3.transpose() * W_12d * b3_dot \
- - geometric_param->J(0, 0) * hat(b3) * hat(b3) * W_12d_dot;
+    tau = -geometric_param->kR(0, 0) * eb - geometric_param->kW(0, 0) * ew
+          - geometric_param->J(0, 0) * b3.transpose() * W_12d * b3_dot
+          - geometric_param->J(0, 0) * hat(b3) * hat(b3) * W_12d_dot;
     if (geometric_param->use_integral) {
         tau += -geometric_param->kI * eIr.get_integral() * b1 - geometric_param->kI * eIp.get_integral() * b2;
     }
@@ -207,22 +236,22 @@ void Geometric_control::attitude_control_decoupled_yaw() {
     eW = state->w - R.transpose() * Rd * Wd;
 }
 
-void Geometric_control::deriv_unit_vector(\
-    const Vector3d &A, const Vector3d &A_dot, const Vector3d &A_ddot, \
-    Vector3d &q, Vector3d &q_dot, Vector3d &q_ddot
+void Geometric_control::deriv_unit_vector(
+        const Vector3d &A, const Vector3d &A_dot, const Vector3d &A_ddot,
+        Vector3d &q, Vector3d &q_dot, Vector3d &q_ddot
 ) {
     double nA = A.norm();
     double nA3 = pow(nA, 3);
     double nA5 = pow(nA, 5);
 
     q = A / nA;
-    q_dot = A_dot / nA \
- - A * A.dot(A_dot) / nA3;
+    q_dot = A_dot / nA
+            - A * A.dot(A_dot) / nA3;
 
-    q_ddot = A_ddot / nA \
- - A_dot / nA3 * (2 * A.dot(A_dot)) \
- - A / nA3 * (A_dot.dot(A_dot) + A.dot(A_ddot)) \
- + 3 * A / nA5 * pow(A.dot(A_dot), 2);
+    q_ddot = A_ddot / nA
+             - A_dot / nA3 * (2 * A.dot(A_dot))
+             - A / nA3 * (A_dot.dot(A_dot) + A.dot(A_ddot))
+             + 3 * A / nA5 * pow(A.dot(A_dot), 2);
 }
 
 Matrix3d Geometric_control::hat(const Vector3d &v) {

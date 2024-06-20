@@ -28,7 +28,8 @@ private:
     }
 
     void px4_odometry_cb(const px4_msgs::msg::VehicleOdometry::SharedPtr msg) {
-        px4_state.timestamp.nanosec = msg->timestamp * 1e3;
+        px4_state.timestamp.sec = msg->timestamp_sample / int(1e6);
+        px4_state.timestamp.nanosec = msg->timestamp_sample * int(1e3) - px4_state.timestamp.sec * int(1e9);
         px4_state.world_frame = FRAME_WORLD_NED;
         px4_state.body_frame = FRAME_BODY_FRD;
         px4_state.x << msg->position[0], msg->position[1], msg->position[2];

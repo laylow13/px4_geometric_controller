@@ -14,7 +14,7 @@ class state_t {
 public:
     struct TimeStamp {
         int32_t sec;
-        uint32_t nanosec;
+        uint64_t nanosec;
     } timestamp;
     uint8_t world_frame;
     uint8_t body_frame;
@@ -56,6 +56,7 @@ public:
 
     double thrust_scale;
     double torque_scale;
+    double frequency;
 };
 
 #endif

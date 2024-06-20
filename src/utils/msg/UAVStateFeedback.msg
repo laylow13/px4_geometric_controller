@@ -4,8 +4,8 @@ std_msgs/Header header
 #uint8 FRAME_WORLD_ENU=1
 uint8 world_frame
 
-#uint8 FRAME_BODY_FRD=0
-#uint8 FRAME_BODY_FLU=1
+#uint8 FRAME_BODY_FRD=2
+#uint8 FRAME_BODY_FLU=3
 uint8 body_frame
 
 geometry_msgs/Vector3 pos         #position in world frame

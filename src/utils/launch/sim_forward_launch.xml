@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="utils" exec="sim_state_forward" name="simulation_state_forward" output="screen">
+        <param from="$(find-pkg-share utils)/cfg/sim_forward.yaml"/>
+    </node>
+</launch>
