@@ -39,8 +39,8 @@ void timer_callback() {
     float r, w;
     r = traj_node->get_parameter("traj_r").get_value<float>();
     w = traj_node->get_parameter("traj_w").get_value<float>();
-    round_traj(traj, r, w, t);
-//    pos(traj, t);
+//    round_traj(traj, r, w, t);
+    pos(traj, t);
     t += period / 1000.0f;
     traj_pub->publish(traj);
     RCLCPP_DEBUG(traj_node->get_logger(), "Timer event");

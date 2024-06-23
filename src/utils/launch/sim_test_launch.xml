@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="base_env" exec="sim_base"  output="screen"/>
-    <node pkg="base_env" exec="trajectory_generator"  output="screen"/>
-    <include file="$(find-pkg-share controller)/launch/se3_controller_sim_launch.xml"/>
-</launch>

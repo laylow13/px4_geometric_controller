@@ -13,6 +13,8 @@
 #include "px4_msgs/msg/vehicle_thrust_setpoint.hpp"
 #include "px4_msgs/msg/vehicle_torque_setpoint.hpp"
 #include "geometric_control/Geometric_control.hpp"
+#include "FTDO/FTDO.h"
+#include "EKF_estimator/EKF_estimator.h"
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -51,6 +53,7 @@ public:
 private:
     bool is_posctl;
     bool is_offboard;
+    EKF_estimator param_estimator;
     std::map<std::string, double> parameters_;
     std::atomic<uint64_t> timestamp;
     shared_ptr<Control_base> controller;

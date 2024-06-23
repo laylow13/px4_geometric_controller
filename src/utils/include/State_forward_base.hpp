@@ -15,16 +15,16 @@ class State_forward_base : public rclcpp::Node {
 public:
     State_forward_base(std::string node_name) : Node(node_name), tau(0.5) {
         state_pub = this->create_publisher<utils::msg::UAVStateFeedback>("/SCIT_drone/UAV_state_feedback", 10);
-        this->declare_parameter<int>("frequency", 50);
+        this->declare_parameter<int>("frequency", 250);
         this->declare_parameter<uint8_t>("target_world_frame", FRAME_WORLD_NED);
         this->declare_parameter<uint8_t>("target_body_frame", FRAME_BODY_FRD);
         frequency = this->get_parameter("frequency").get_value<int>();
         target_world_frame = this->get_parameter("target_world_frame").get_value<uint8_t>();
         target_body_frame = this->get_parameter("target_body_frame").get_value<uint8_t>();
-        x_2dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
-        x_3dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(2, tau, 1. / frequency);
-        x_4dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(3, tau, 1. / frequency);
-        w_dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
+//        x_2dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
+//        x_3dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(2, tau, 1. / frequency);
+//        x_4dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(3, tau, 1. / frequency);
+//        w_dot_differentiator = std::make_shared<Dirty_derivative<Vector3d>>(1, tau, 1. / frequency);
         timer = this->create_wall_timer(std::chrono::milliseconds(int(1000 / frequency)),
                                         std::bind(&State_forward_base::timer_cb, this));
     }
@@ -47,7 +47,7 @@ private:
 
     void timer_cb() {
         current_state = get_current_state();
-        current_state.x_2dot = x_2dot_differentiator->calculate(current_state.x_dot);
+//        current_state.x_2dot = x_2dot_differentiator->calculate(current_state.x_dot);
 //        current_state.x_3dot = x_3dot_differentiator->calculate(current_state.x_2dot);
 //        current_state.x_4dot = x_4dot_differentiator->calculate(current_state.x_3dot);
 //        current_state.w_dot = w_dot_differentiator->calculate(current_state.w);

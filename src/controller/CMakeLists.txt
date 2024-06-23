@@ -4,7 +4,6 @@ project(controller)
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif ()
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(utils REQUIRED)
@@ -21,11 +20,13 @@ include_directories(
         $<BUILD_INTERFACE:${EIGEN3_INCLUDE_DIR}>
         $<INSTALL_INTERFACE:include>)
 
+add_executable(FTDO_example lib/FTDO/FTDO_example.cpp)
+target_include_directories(FTDO_example  PUBLIC lib/FTDO)
+
 add_executable(geometric_test lib/geometric_control/Geometric_control_Test.cpp lib/geometric_control/Geometric_control.cpp)
-#target_include_directories(geometric_test PUBLIC include)
 
 add_executable(geometric_controller_node
-        src/geometric_controller_node.cpp lib/geometric_control/Geometric_control.cpp)
+        src/geometric_controller_node.cpp lib/geometric_control/Geometric_control.cpp lib/EKF_estimator/EKF_estimator.cpp)
 target_compile_features(geometric_controller_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 ament_target_dependencies(
