@@ -1,0 +1,10 @@
+- ros_topic_name: "/lidar/points"
+  gz_topic_name: "/world/simple_test/model/x500_3Dlidar_0/link/link/sensor/gpu_lidar/scan/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  subscriber_queue: 5       # Default 10
+  publisher_queue: 6        # Default 10
+  lazy: false                # Default "false"
+  direction: GZ_TO_ROS  # Default "BIDIRECTIONAL" - Bridge both directions
+                            # "GZ_TO_ROS" - Bridge Gz topic to ROS
+                            # "ROS_TO_GZ" - Bridge ROS topic to Gz

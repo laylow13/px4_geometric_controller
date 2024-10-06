@@ -5,23 +5,12 @@
 #include "Geometric_control.hpp"
 
 Geometric_control::Geometric_control(shared_ptr<command_t> command_, shared_ptr<state_t> state_,
-                                     shared_ptr<param_t> param_) : Control_base(command_, state_, param_) {
-    e1 << 1.0, 0.0, 0.0;
-    e2 << 0.0, 1.0, 0.0;
-    e3 << 0.0, 0.0, 1.0;
-    this->geometric_param = std::static_pointer_cast<geometric_param_t>(this->param);
-    this->eIX.set_limit(Vector3d::Constant(-geometric_param->int_limit),
-                        Vector3d::Constant(geometric_param->int_limit));
+                                     shared_ptr<geometric_param_t> geometric_param_) : command(command_),
+                                                                                       state(state_),
+                                                                                       geometric_param(
+                                                                                               geometric_param_) {
 }
 
-
-//void Geometric_control::init(shared_ptr<command_t> command_, shared_ptr<state_t> state_,
-//                             shared_ptr<param_t> param_) {
-//    this->command = command_;
-//    this->state = state_;
-//    this->param = param_;
-//    this->geometric_param = std::static_pointer_cast<geometric_param_t>(this->param);
-//}
 
 void Geometric_control::compute_control_output() {
     position_control();
@@ -49,19 +38,19 @@ Geometric_control::get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_v
             eR * 2.0 / geometric_param->attctrl_tau; //Ref https://github.com/Jaeyoung-Lim/mavros_controllers/issues/230
 }
 
-void Geometric_control::get_fM_cmd(Vector4d &fM_cmd_, bool is_normalized) const {
-    fM_cmd_ = Vector4d(-f_total, M(0), M(1), M(2));
+void Geometric_control::get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, bool is_normalized) const {
+    thrust_cmd_ = -f_total;
+    torque_cmd_ << M(0), M(1), M(2);
     if (is_normalized) {
-        fM_cmd_(0) /= geometric_param->thrust_scale;
-        fM_cmd_(0) = std::max(-1.0, std::min(fM_cmd_(0), 0.0)); //constrain normalized f to -1-0
-        fM_cmd_.block(1, 0, 3, 1) /= geometric_param->torque_scale;
-        fM_cmd_.block(1, 0, 3, 1) = fM_cmd_.block(1, 0, 3, 1).cwiseMax(-1.0).cwiseMin(
-                1.0); //constrain normalized f to -1-1
+        thrust_cmd_ /= geometric_param->thrust_scale;
+        thrust_cmd_ = std::max(-1.0, std::min(thrust_cmd_, 0.0)); //constrain normalized f to -1-0
+        torque_cmd_ /= geometric_param->torque_scale;
+        torque_cmd_ = torque_cmd_.cwiseMax(-1.0).cwiseMin(1.0); //constrain normalized M to -1-1
     }
 }
 
 void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const {
-    actuator_cmd_ = actuator_cmd;
+//    actuator_cmd_ = actuator_cmd;
     if (is_normalized) {
 
     }
@@ -86,11 +75,14 @@ void Geometric_control::position_control() {
     // position integral terms
     // "use_integral" must be set through the config file
     if (geometric_param->use_integral) {
-        eIX.integrate(geometric_param->c1 * eX + eV, dt); // eq (13)
+        eIX.set_limit(Vector3d::Constant(-geometric_param->int_limit),
+                      Vector3d::Constant(geometric_param->int_limit));
+        eIX.integrate(geometric_param->c1 * eX + eV, 1 / geometric_param->frequency); // eq (13)
     } else {
         eIX.set_zero();
     }
 
+    auto e3 = Vector3d::UnitZ();
     // force 'f' along negative b3-axis - eq (14)
     // this term equals to R.e3
     Vector3d A = -geometric_param->kX * eX
@@ -159,26 +151,28 @@ void Geometric_control::attitude_control() {
     eW = state->w - R.transpose() * Rd * Wd;
 
     if (geometric_param->use_integral) {
-        eIR.integrate(eW + geometric_param->c2 * eR, dt);
+        eIR.set_limit(Vector3d::Constant(-geometric_param->int_limit),
+                      Vector3d::Constant(geometric_param->int_limit));
+        eIR.integrate(eW + geometric_param->c2 * eR, 1 / geometric_param->frequency);
+    } else {
+        eIR.set_zero();
     }
 
     M = -geometric_param->kR * eR
         - geometric_param->kW * eW
-        - geometric_param->kI * eIR.get_integral()
+        - geometric_param->kIR * eIR.get_integral()
         + hat(R.transpose() * Rd * Wd) * geometric_param->J *
           R.transpose() * Rd * Wd
         + geometric_param->J * R.transpose() * Rd * Wd_dot;
-
-    fM_cmd << f_total, M(0), M(1), M(2);
 }
 
 void Geometric_control::attitude_control_decoupled_yaw() {
     // This uses the controller defined in "Geometric Controls of a Quadrotor
     // with a Decoupled Yaw Control"
     // URL: https://doi.org/10.23919/ACC.2019.8815189
-    Vector3d b1 = R * e1;
-    Vector3d b2 = R * e2;
-    Vector3d b3 = R * e3;
+    Vector3d b1 = R * Vector3d::UnitX();
+    Vector3d b2 = R * Vector3d::UnitY();
+    Vector3d b3 = R * Vector3d::UnitZ();
 
     double ky = geometric_param->kR(2, 2);
     double kwy = geometric_param->kW(2, 2);
@@ -197,20 +191,23 @@ void Geometric_control::attitude_control_decoupled_yaw() {
     double ey = -b2.dot(b1c);
     double ewy = state->w(2) - wc3;
 
-    // attitude integral terms
-    Vector3d eI = ew + geometric_param->c2 * eb;
-
-    eIr.integrate(eI.dot(b1), dt); // b1 axis - eq (29)
-    eIp.integrate(eI.dot(b2), dt); // b2 axis - eq (30)
-    eIy.integrate(ewy + geometric_param->c3 * ey, dt);
-
     // control moment for the roll/pitch dynamics - eq (31)
     Vector3d tau;
     tau = -geometric_param->kR(0, 0) * eb - geometric_param->kW(0, 0) * ew
           - geometric_param->J(0, 0) * b3.transpose() * W_12d * b3_dot
           - geometric_param->J(0, 0) * hat(b3) * hat(b3) * W_12d_dot;
+
     if (geometric_param->use_integral) {
+        // attitude integral terms
+        Vector3d eI = ew + geometric_param->c2 * eb;
+        eIr.set_limit(-geometric_param->int_limit, geometric_param->int_limit);
+        eIp.set_limit(-geometric_param->int_limit, geometric_param->int_limit);
+        eIr.integrate(eI.dot(b1), 1 / geometric_param->frequency); // b1 axis - eq (29)
+        eIp.integrate(eI.dot(b2), 1 / geometric_param->frequency); // b2 axis - eq (30)
         tau += -geometric_param->kI * eIr.get_integral() * b1 - geometric_param->kI * eIp.get_integral() * b2;
+    } else {
+        eIr.set_zero();
+        eIp.set_zero();
     }
 
     double M1, M2, M3;
@@ -223,12 +220,15 @@ void Geometric_control::attitude_control_decoupled_yaw() {
 
     // control moment around b3 axis - yaw - eq (52)
     M3 = -ky * ey - kwy * ewy + geometric_param->J(2, 2) * wc3_dot;
-    if (geometric_param->use_integral)
+    if (geometric_param->use_integral) {
+        eIy.set_limit(-geometric_param->int_limit, geometric_param->int_limit);
+        eIy.integrate(ewy + geometric_param->c3 * ey, 1 / geometric_param->frequency);
         M3 += -geometric_param->kyI * eIy.get_integral();
+    } else {
+        eIy.set_zero();
+    }
 
     M << M1, M2, M3;
-
-    fM_cmd << f_total, M(0), M(1), M(2);
 
     // for saving:
     Matrix3d RdtR = Rd.transpose() * R;

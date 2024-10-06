@@ -9,23 +9,23 @@
 
 class geometric_param_t : public param_t {
 public:
+    //control params
     bool use_decoupled_yaw;
     Matrix3d kX;
     Matrix3d kV;
     Matrix3d kR;
     Matrix3d kW;
-
+    //integral params
     bool use_integral;
     double int_limit;
-    double kIX;
-    double ki;
-    double kIR;
-    double kI;
-    double kyI;
+    double kIX; //position integral scale
+    double kIR; //attitude integral scale
+    double kI;  // pitch and roll integral scale
+    double kyI; //yaw integral scale
     double c1;
     double c2;
     double c3;
-
+    //custom
     double attctrl_tau;
 };
 
@@ -80,25 +80,23 @@ private:
     T max_limit;
 };
 
-class Geometric_control : public Control_base {
+class Geometric_control {
 public:
-    Geometric_control(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<param_t>);
+    Geometric_control(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<geometric_param_t>);
 
-//    void init(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<param_t>) override;
+    void compute_control_output();
 
-    void compute_control_output() override;
+    void get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, bool is_normalized) const;
 
-    void get_fM_cmd(Vector4d &fM_cmd_, bool is_normalized) const override;
+    void get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const;
 
-    void get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const override;
+    void get_attitude_cmd(double &thrust_cmd_, Quaterniond &attitude_cmd_, bool is_normalized) const;
 
-    void get_attitude_cmd(double &thrust_cmd_, Quaterniond &attitude_cmd_, bool is_normalized) const override;
+    void get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_vel_cmd_, bool is_normalized) const;
 
-    void get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_vel_cmd_, bool is_normalized) const override;
+    void get_positional_tracking_error(Vector3d &eX_, Vector3d &eV_) const;
 
-    void get_positional_tracking_error(Vector3d &eX_, Vector3d &eV_) const override;
-
-    void get_rotational_tracking_error(Vector3d &eR_, Vector3d &eW_) const override;
+    void get_rotational_tracking_error(Vector3d &eR_, Vector3d &eW_) const;
 
 private:
     void position_control();
@@ -115,41 +113,40 @@ private:
     Vector3d &q, Vector3d &q_dot, Vector3d &q_ddot);
 
 private:
+    shared_ptr<command_t> command;
+    shared_ptr<state_t> state;
     shared_ptr<geometric_param_t> geometric_param;
-    Matrix3d R;
+    Vector3d force_disturbance; //dF
+    Vector3d torque_disturbance; //dM
+
+    // for integral controller
+//    double dt;//TODO
+    Integrator<Vector3d> eIR{true}; /**< Attitude integral error */
+    Integrator<Vector3d> eIX{true}; /**< Position integral error */
+    Integrator<double> eIr{true}; /**< Attitude integral error for roll axis */
+    Integrator<double> eIp{true}; /**< Attitude integral error for pitch axis */
+    Integrator<double> eIy{true}; /**< Attitude integral error for yaw axis */
+
+    //for saving
     double f_total{};
     Vector3d M = Vector3d::Zero();  /**< Control moments */
-    // for integral controller
-    Integrator<Vector3d> eIR; /**< Attitude integral error */
-    Integrator<Vector3d> eIX; /**< Position integral error */
-    Integrator<double> eIr; /**< Attitude integral error for roll axis */
-    Integrator<double> eIp; /**< Attitude integral error for pitch axis */
-    Integrator<double> eIy; /**< Attitude integral error for yaw axis */
-
-    Vector3d e1, e2, e3;
     Vector3d eX = Vector3d::Zero(); /**< Position error */
     Vector3d eV = Vector3d::Zero(); /**< Velocity error */
     Vector3d eR = Vector3d::Zero(); /**< Attitude error */
     Vector3d eW = Vector3d::Zero(); /**< Angular rate error */
 
-    Vector3d ei = Vector3d::Zero(); /**< Position integral error */
-
-//    Vector3d b1 = Vector3d::Zero(); /**< Direction of the first body axis */
-//    Vector3d b2 = Vector3d::Zero(); /**< Direction of the second body axis */
-//    Vector3d b3 = Vector3d::Zero(); /**< Direction of the third body axis */
-//    Vector3d b3_dot = Vector3d::Zero(); /**< Desired rate of change of b3 axis */
-
+    //for attitude control
     Vector3d b3d = Vector3d::Zero();
     Vector3d b3d_dot = Vector3d::Zero();
     Vector3d b3d_ddot = Vector3d::Zero();
     Vector3d Wd = Vector3d::Zero();
     Vector3d Wd_dot = Vector3d::Zero();
-    Vector3d Wd_2dot = Vector3d::Zero();
+//    Vector3d Wd_2dot = Vector3d::Zero();
+    Matrix3d R = Matrix3d::Identity();
     Matrix3d Rd = Matrix3d::Identity();
     Vector3d b1c = Vector3d::Zero();
     double wc3 = 0.0;
     double wc3_dot = 0.0;
-    double dt{};
 };
 
 

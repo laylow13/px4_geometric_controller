@@ -56,7 +56,7 @@ private:
     EKF_estimator param_estimator;
     std::map<std::string, double> parameters_;
     std::atomic<uint64_t> timestamp;
-    shared_ptr<Control_base> controller;
+    shared_ptr<Geometric_control> controller;
     shared_ptr<command_t> command;
     shared_ptr<state_t> state;
     shared_ptr<geometric_param_t> geometric_param;
@@ -142,7 +142,7 @@ void Controller_node::parameter_update() {
         geometric_param->use_integral = int(parameters_["use_integral"]);
         geometric_param->int_limit = parameters_["int_limit"];
         geometric_param->kIX = parameters_["kIX"];
-        geometric_param->ki = parameters_["ki"];
+//        geometric_param->ki = parameters_["ki"];
         geometric_param->kIR = parameters_["kIR"];
         geometric_param->kI = parameters_["kI"];
         geometric_param->kyI = parameters_["kyI"];
@@ -175,12 +175,13 @@ void Controller_node::publish_offboard_control_mode() {
 }
 
 void Controller_node::publish_controller_cmd() {
-    Vector4d fM_cmd;
+    double thrust_cmd;
+    Vector3d torque_cmd;
     controller->compute_control_output();
-    controller->get_fM_cmd(fM_cmd, false);
-    RCLCPP_INFO(this->get_logger(), "[raw f]:%.2f [raw M]:%.2f,%.2f,%.2f", fM_cmd(0), fM_cmd(1), fM_cmd(2), fM_cmd(3));
-    controller->get_fM_cmd(fM_cmd, true);
-    RCLCPP_INFO(this->get_logger(), "[f]:%.2f [M]:%.2f,%.2f,%.2f", fM_cmd(0), fM_cmd(1), fM_cmd(2), fM_cmd(3));
+    controller->get_fM_cmd(thrust_cmd, torque_cmd, false);
+    RCLCPP_INFO(this->get_logger(), "[raw f]:%.2f [raw M]:%.2f,%.2f,%.2f", thrust_cmd, torque_cmd(0), torque_cmd(1), torque_cmd(2));
+    controller->get_fM_cmd(thrust_cmd, torque_cmd, true);
+    RCLCPP_INFO(this->get_logger(), "[f]:%.2f [M]:%.2f,%.2f,%.2f", thrust_cmd, torque_cmd(0), torque_cmd(1), torque_cmd(2));
     Vector3d eX, eV, eR, eW;
     controller->get_positional_tracking_error(eX, eV);
     RCLCPP_INFO(this->get_logger(), "[eX]:%.2f,%.2f,%.2f [eV]:%.2f,%.2f,%.2f", eX(0), eX(1), eX(2), eV(0), eV(1),
@@ -193,14 +194,14 @@ void Controller_node::publish_controller_cmd() {
     thrust_sp.timestamp_sample = state->timestamp.sec * uint64_t(1e6) + state->timestamp.nanosec / 1000;
     thrust_sp.xyz[0] = 0;
     thrust_sp.xyz[1] = 0;
-    thrust_sp.xyz[2] = fM_cmd(0);
+    thrust_sp.xyz[2] = thrust_cmd;
     thrust_cmd_pub->publish(thrust_sp);
     px4_msgs::msg::VehicleTorqueSetpoint torque_sp{};
     torque_sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
     torque_sp.timestamp_sample = state->timestamp.sec * uint64_t(1e6) + state->timestamp.nanosec / 1000;
-    torque_sp.xyz[0] = fM_cmd(1);
-    torque_sp.xyz[1] = fM_cmd(2);
-    torque_sp.xyz[2] = fM_cmd(3);
+    torque_sp.xyz[0] = torque_cmd(0);
+    torque_sp.xyz[1] = torque_cmd(1);
+    torque_sp.xyz[2] = torque_cmd(2);
     torque_cmd_pub->publish(torque_sp);
 }
 

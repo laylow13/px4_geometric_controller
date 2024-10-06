@@ -27,7 +27,7 @@ int main() {
 
     param->use_integral = false;
     param->kIX = 4.0;
-    param->ki = 0.01;
+//    param->ki = 0.01;
     param->kIR = 0.015;
     param->kI = 0.01;
     param->kyI = 0.02;
@@ -55,9 +55,10 @@ int main() {
         command->b1d_2dot.setZero();
 
         geometric_controller.compute_control_output();
-        Eigen::Vector4d fM_cmd;
-        geometric_controller.get_fM_cmd(fM_cmd, false);
-        std::cout << "i = " << i << ":\tf = " << fM_cmd << std::endl;
+        double thrust_cmd;
+        Eigen::Vector3d torque_cmd;
+        geometric_controller.get_fM_cmd(thrust_cmd, torque_cmd, false);
+        std::cout << "i = " << i << ":\tf = " << thrust_cmd << torque_cmd << std::endl;
     }
     return 0;
 }
