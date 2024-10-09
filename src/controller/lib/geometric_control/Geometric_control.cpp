@@ -34,8 +34,8 @@ Geometric_control::get_angular_velocity_cmd(double &thrust_cmd_, Vector3d &ang_v
     thrust_cmd_ = -f_total;
     if (is_normalized)
         thrust_cmd_ = std::max(-1.0, std::min(thrust_cmd_ / geometric_param->thrust_scale, 0.0));
-    ang_vel_cmd_ =
-            eR * 2.0 / geometric_param->attctrl_tau; //Ref https://github.com/Jaeyoung-Lim/mavros_controllers/issues/230
+    ang_vel_cmd_ = -eR * 2.0 / geometric_param->attctrl_tau;
+    //Ref https://github.com/Jaeyoung-Lim/mavros_controllers/issues/230
 }
 
 void Geometric_control::get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, bool is_normalized) const {
@@ -51,8 +51,23 @@ void Geometric_control::get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, b
 
 void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const {
 //    actuator_cmd_ = actuator_cmd;
+    double &l = geometric_param->l;
+    double &c_tf = geometric_param->c_tf;
+    double &c_f = geometric_param->c_f;
+    Matrix4d effectiveness;
+    effectiveness << 1, 1, 1, 1,
+            -l, l, l, -l,
+            l, -l, l, -l,
+            c_tf, c_tf, -c_tf, -c_tf;
+    effectiveness = c_f * effectiveness;
+    Matrix4d mix = effectiveness.inverse();
+    Vector4d input{f_total, M(0), M(1), M(2)};
+    actuator_cmd_ = mix * input;
+    actuator_cmd_ = actuator_cmd_.cwiseSqrt();
     if (is_normalized) {
-
+        double &motor_vel_min = geometric_param->motor_vel_min;
+        double &motor_vel_max = geometric_param->motor_vel_max;
+        actuator_cmd_ = (actuator_cmd_ - Vector4d::Constant(motor_vel_min)) / (motor_vel_max - motor_vel_min);
     }
 }
 

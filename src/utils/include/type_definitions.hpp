@@ -48,14 +48,19 @@ public:
 
 class param_t {
 public:
+    //model param
     Matrix3d J;
     double m;
     double g;
-    double c_tf;
+    double c_f; //thrust constant, f=c_f*w^2  [N]
+    double c_tf; //torque constant, M=c_tf*f [Nm]
     double l;
-
+    //for normalization
     double thrust_scale;
     double torque_scale;
+    double motor_vel_min;
+    double motor_vel_max;
+    //for control
     double frequency;
 };
 

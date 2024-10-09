@@ -17,6 +17,8 @@ std::shared_ptr<rclcpp::Node> traj_node;
 
 void timer_callback();
 
+void Lissajous(UAVCommand &_traj, float _t, float a, float b, float p, float q);
+
 void pos(UAVCommand &_traj, float _t);
 
 void round_traj(UAVCommand &_traj, float _r, float _w, float _t);
@@ -36,15 +38,49 @@ int main(int argc, char *argv[]) {
 
 void timer_callback() {
     UAVCommand traj;
-    float r, w;
-    r = traj_node->get_parameter("traj_r").get_value<float>();
-    w = traj_node->get_parameter("traj_w").get_value<float>();
+//    float r, w;
+//    r = traj_node->get_parameter("traj_r").get_value<float>();
+//    w = traj_node->get_parameter("traj_w").get_value<float>();
 //    round_traj(traj, r, w, t);
-    pos(traj, t);
+    Lissajous(traj, t, 1.5, 3, 1, 0.5);
+//    pos(traj, t);
     t += period / 1000.0f;
     traj_pub->publish(traj);
     RCLCPP_DEBUG(traj_node->get_logger(), "Timer event");
 }
+
+//x=a*sin(pt),y=b*sin(qt)
+void Lissajous(UAVCommand &_traj, float _t, float a, float b, float p, float q) {
+    _traj.header.stamp = traj_node->get_clock()->now().operator builtin_interfaces::msg::Time();
+    _traj.world_frame = FRAME_WORLD_NED;
+    _traj.body_frame = FRAME_BODY_FRD;
+    _traj.pos.x = a * sin(p * t);
+    _traj.pos.y = b * sin(q * t);
+    _traj.pos.z = -2.0;
+    _traj.vel.x = a * p * cos(p * t);
+    _traj.vel.y = b * q * cos(q * t);
+    _traj.vel.z = 0.0;
+    _traj.acc.x = -a * pow(p, 2) * sin(p * t);
+    _traj.acc.y = -b * pow(q, 2) * sin(q * t);
+    _traj.acc.z = 0.0;
+    _traj.jerk.x = -a * pow(p, 3) * cos(p * t);
+    _traj.jerk.y = -b * pow(q, 3) * cos(q * t);
+    _traj.jerk.z = 0.0;
+    _traj.snap.x = a * pow(p, 4) * sin(p * t);
+    _traj.snap.y = b * pow(q, 4) * sin(q * t);
+    _traj.snap.z = 0.0;
+
+    _traj.heading.x = 0.0;
+    _traj.heading.y = 1.0;
+    _traj.heading.z = 0.0;
+    _traj.heading_dot.x = 0.0;
+    _traj.heading_dot.y = 0.0;
+    _traj.heading_dot.z = 0.0;
+    _traj.heading_2dot.x = 0.0;
+    _traj.heading_2dot.y = 0.0;
+    _traj.heading_2dot.z = 0.0;
+}
+
 
 void round_traj(UAVCommand &_traj, float _r, float _w, float _t) {
     _traj.header.stamp = traj_node->get_clock()->now().operator builtin_interfaces::msg::Time();
@@ -84,7 +120,7 @@ void pos(UAVCommand &_traj, float _t) {
 
     _traj.pos.x = 1.0;
     _traj.pos.y = 1.0;
-    _traj.pos.z = -1.0;
+    _traj.pos.z = -3.0;
     _traj.vel.x = 0.0;
     _traj.vel.y = 0.0;
     _traj.vel.z = 0.0;

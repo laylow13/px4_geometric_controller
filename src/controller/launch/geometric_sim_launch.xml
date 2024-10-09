@@ -2,6 +2,6 @@
     <include file="$(find-pkg-share utils)/launch/sim_forward_launch.xml"/>
     <node pkg="utils" exec="trajectory_generator" name="trajectory_generator" output="screen"/>
     <node pkg="controller" exec="geometric_controller_node" name="geometric_controller_node" output="screen">
-        <param from="$(find-pkg-share controller)/cfg/sim.yaml"/>
+        <param from="$(find-pkg-share controller)/cfg/sim_x500.yaml"/>
     </node>
 </launch>
