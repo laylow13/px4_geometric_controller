@@ -42,13 +42,13 @@ void timer_callback() {
 //    r = traj_node->get_parameter("traj_r").get_value<float>();
 //    w = traj_node->get_parameter("traj_w").get_value<float>();
 //    round_traj(traj, r, w, t);
-    Lissajous(traj, t, 1.5, 3, 1, 0.5);
+    Lissajous(traj, t, 3, 6, 2, 1);
 //    pos(traj, t);
     t += period / 1000.0f;
     traj_pub->publish(traj);
     RCLCPP_DEBUG(traj_node->get_logger(), "Timer event");
 }
-
+//TODO: use AutoDiff
 //x=a*sin(pt),y=b*sin(qt)
 void Lissajous(UAVCommand &_traj, float _t, float a, float b, float p, float q) {
     _traj.header.stamp = traj_node->get_clock()->now().operator builtin_interfaces::msg::Time();
@@ -120,7 +120,7 @@ void pos(UAVCommand &_traj, float _t) {
 
     _traj.pos.x = 1.0;
     _traj.pos.y = 1.0;
-    _traj.pos.z = -3.0;
+    _traj.pos.z = -5.0;
     _traj.vel.x = 0.0;
     _traj.vel.y = 0.0;
     _traj.vel.z = 0.0;

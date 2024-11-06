@@ -31,9 +31,12 @@
       J3: 0.04
       m: 2.0
       g: 9.81
+      c_f: 0.00000854858
       c_tf: 0.016
       l: 0.174
       thrust_scale: 27.3
       torque_scale: 5.0
+      motor_vel_min: 150.0
+      motor_vel_max: 1000.0
       attctrl_tau: 0.2
       frequency: 100.0

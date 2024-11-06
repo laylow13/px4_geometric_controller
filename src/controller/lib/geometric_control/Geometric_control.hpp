@@ -84,11 +84,13 @@ class Geometric_control {
 public:
     Geometric_control(shared_ptr<command_t>, shared_ptr<state_t>, shared_ptr<geometric_param_t>);
 
+    void compute_mix_matrix();
+
     void compute_control_output();
 
     void get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, bool is_normalized) const;
 
-    void get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const;
+    void get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized);
 
     void get_attitude_cmd(double &thrust_cmd_, Quaterniond &attitude_cmd_, bool is_normalized) const;
 
@@ -147,6 +149,9 @@ private:
     Vector3d b1c = Vector3d::Zero();
     double wc3 = 0.0;
     double wc3_dot = 0.0;
+
+    //for actuator cmd
+    Matrix4d mix;
 };
 
 

@@ -14,6 +14,7 @@
 #include "px4_msgs/msg/vehicle_torque_setpoint.hpp"
 #include "px4_msgs/msg/vehicle_attitude_setpoint.hpp"
 #include "px4_msgs/msg/vehicle_rates_setpoint.hpp"
+#include "px4_msgs/msg/actuator_motors.hpp"
 #include "geometric_control/Geometric_control.hpp"
 #include "FTDO/FTDO.h"
 #include "EKF_estimator/EKF_estimator.h"
@@ -23,10 +24,11 @@ using std::placeholders::_1;
 
 class Controller_node : public rclcpp::Node {
 public:
-    enum control_mode_t {
+    enum offboard_mode_t {
         ATTITUDE,
-        ANG_RATE,
-        TORQUE
+        BODY_RATE,
+        THRUST_TORQUE,
+        DIRECT_ACTUATOR
     };
 
     Controller_node() : Node("geometric_controller_node"), is_posctl(false) {
@@ -45,6 +47,8 @@ public:
                 "/fmu/in/vehicle_thrust_setpoint", 10);
         torque_cmd_pub = this->create_publisher<px4_msgs::msg::VehicleTorqueSetpoint>(
                 "/fmu/in/vehicle_torque_setpoint", 10);
+        actuator_cmd_pub = this->create_publisher<px4_msgs::msg::ActuatorMotors>(
+                "/fmu/in/actuator_motors", 10);
         offboard_pub = this->create_publisher<px4_msgs::msg::OffboardControlMode>("/fmu/in/offboard_control_mode", 10);
         state_sub = this->create_subscription<utils::msg::UAVStateFeedback>(
                 "/SCIT_drone/UAV_state_feedback", 10, std::bind(&Controller_node::state_sub_cb, this, _1));
@@ -85,6 +89,7 @@ private:
     rclcpp::Publisher<px4_msgs::msg::VehicleTorqueSetpoint>::SharedPtr torque_cmd_pub;
     rclcpp::Publisher<px4_msgs::msg::VehicleAttitudeSetpoint>::SharedPtr att_cmd_pub;
     rclcpp::Publisher<px4_msgs::msg::VehicleRatesSetpoint>::SharedPtr rate_cmd_pub;
+    rclcpp::Publisher<px4_msgs::msg::ActuatorMotors>::SharedPtr actuator_cmd_pub;
 
     void parameter_init();
 
@@ -92,13 +97,15 @@ private:
 
     void timer_callback();
 
-    void publish_offboard_control_mode(control_mode_t mode);
+    void publish_offboard_control_mode(offboard_mode_t mode);
 
     void publish_thrust_torque_cmd();
 
     void publish_thrust_attitude_cmd();
 
     void publish_thrust_angular_rate_cmd();
+
+    void publish_actuator_cmd();
 
     void state_sub_cb(const utils::msg::UAVStateFeedback::SharedPtr msg);
 
@@ -116,7 +123,10 @@ void Controller_node::parameter_init() {
                        {"g",                 9.81},
                        {"thrust_scale",      1.0},
                        {"torque_scale",      1.0},
+                       {"motor_vel_min",     0.0},
+                       {"motor_vel_max",     0.0},
                        {"frequency",         100.0},
+                       {"c_f",               0.0},
                        {"c_tf",              0.0},
                        {"l",                 0.0},
                        {"use_decoupled_yaw", 0.0},
@@ -152,10 +162,13 @@ void Controller_node::parameter_update() {
         geometric_param->J.diagonal() << ros_parameters_["J1"], ros_parameters_["J2"], ros_parameters_["J3"];
         geometric_param->m = ros_parameters_["m"];
         geometric_param->g = ros_parameters_["g"];
+        geometric_param->c_f = ros_parameters_["c_f"];
         geometric_param->c_tf = ros_parameters_["c_tf"];
         geometric_param->l = ros_parameters_["l"];
         geometric_param->thrust_scale = ros_parameters_["thrust_scale"];
         geometric_param->torque_scale = ros_parameters_["torque_scale"];
+        geometric_param->motor_vel_min = ros_parameters_["motor_vel_min"];
+        geometric_param->motor_vel_max = ros_parameters_["motor_vel_max"];
         geometric_param->frequency = ros_parameters_["frequency"];
         geometric_param->use_decoupled_yaw = int(ros_parameters_["use_decoupled_yaw"]);
         geometric_param->kX.diagonal() << ros_parameters_["kX1"], ros_parameters_["kX2"], ros_parameters_["kX3"];
@@ -180,22 +193,24 @@ void Controller_node::parameter_update() {
 void Controller_node::timer_callback() {
     timestamp.store(this->get_clock()->now().nanoseconds() / 1000);
     if (!is_posctl) {
-        publish_thrust_torque_cmd();
 //        publish_thrust_attitude_cmd();
 //        publish_thrust_angular_rate_cmd();
-        publish_offboard_control_mode(TORQUE);
+//        publish_thrust_torque_cmd();
+        publish_actuator_cmd();
+        publish_offboard_control_mode(DIRECT_ACTUATOR);
 
     }
 }
 
-void Controller_node::publish_offboard_control_mode(control_mode_t mode) {
+void Controller_node::publish_offboard_control_mode(offboard_mode_t mode) {
     px4_msgs::msg::OffboardControlMode msg{};
     msg.position = false;
     msg.velocity = false;
     msg.acceleration = false;
     msg.attitude = mode == ATTITUDE;
-    msg.body_rate = mode == ANG_RATE;
-    msg.actuator = mode == TORQUE;
+    msg.body_rate = mode == BODY_RATE;
+    msg.thrust_and_torque = mode == THRUST_TORQUE;
+    msg.direct_actuator = mode == DIRECT_ACTUATOR;
     msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
     offboard_pub->publish(msg);
 }
@@ -263,6 +278,22 @@ void Controller_node::publish_thrust_angular_rate_cmd() {
 
     RCLCPP_INFO(this->get_logger(), "[f]:%.2f [rate]:%.2f,%.2f,%.2f", thrust_cmd, ang_rate_cmd(0), ang_rate_cmd(1),
                 ang_rate_cmd(2));
+}
+
+void Controller_node::publish_actuator_cmd() {
+    Vector4d actuator_cmd;
+    controller->compute_control_output();
+    controller->get_actuator_cmd(actuator_cmd, true);
+    px4_msgs::msg::ActuatorMotors actuator_sp;
+    actuator_sp.timestamp = this->get_clock()->now().nanoseconds() / 1000;
+    actuator_sp.timestamp_sample = this->get_clock()->now().nanoseconds() / 1000;
+//    actuator_sp.timestamp_sample = state->timestamp.sec * uint64_t(1e6) + state->timestamp.nanosec / 1000;
+    actuator_sp.control[0] = actuator_cmd(0);
+    actuator_sp.control[1] = actuator_cmd(1);
+    actuator_sp.control[2] = actuator_cmd(2);
+    actuator_sp.control[3] = actuator_cmd(3);
+    actuator_sp.reversible_flags = 0;
+    actuator_cmd_pub->publish(actuator_sp);
 }
 
 void Controller_node::state_sub_cb(const utils::msg::UAVStateFeedback::SharedPtr msg) {

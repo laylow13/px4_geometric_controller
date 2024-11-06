@@ -49,8 +49,7 @@ void Geometric_control::get_fM_cmd(double &thrust_cmd_, Vector3d &torque_cmd_, b
     }
 }
 
-void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) const {
-//    actuator_cmd_ = actuator_cmd;
+void Geometric_control::compute_mix_matrix() {
     double &l = geometric_param->l;
     double &c_tf = geometric_param->c_tf;
     double &c_f = geometric_param->c_f;
@@ -60,7 +59,13 @@ void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normal
             l, -l, l, -l,
             c_tf, c_tf, -c_tf, -c_tf;
     effectiveness = c_f * effectiveness;
-    Matrix4d mix = effectiveness.inverse();
+    mix = effectiveness.inverse();
+}
+
+void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normalized) {
+//    actuator_cmd_ = actuator_cmd;
+    if (mix.isZero())
+        compute_mix_matrix();
     Vector4d input{f_total, M(0), M(1), M(2)};
     actuator_cmd_ = mix * input;
     actuator_cmd_ = actuator_cmd_.cwiseSqrt();
@@ -68,14 +73,15 @@ void Geometric_control::get_actuator_cmd(Vector4d &actuator_cmd_, bool is_normal
         double &motor_vel_min = geometric_param->motor_vel_min;
         double &motor_vel_max = geometric_param->motor_vel_max;
         actuator_cmd_ = (actuator_cmd_ - Vector4d::Constant(motor_vel_min)) / (motor_vel_max - motor_vel_min);
+        actuator_cmd_ = actuator_cmd_.cwiseMax(0.0).cwiseMin(1.0);
     }
 }
+
 
 void Geometric_control::get_positional_tracking_error(Vector3d &eX_, Vector3d &eV_) const {
     eX_ = eX;
     eV_ = eV;
 }
-
 
 void Geometric_control::get_rotational_tracking_error(Vector3d &eR_, Vector3d &eW_) const {
     eR_ = eR;
